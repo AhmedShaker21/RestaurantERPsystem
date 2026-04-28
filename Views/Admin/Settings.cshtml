@@ -1,0 +1,228 @@
+@model Dictionary<string, string>
+@{
+    ViewData["Title"] = "Settings";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string Get(string key, string def = "") => Model.GetValueOrDefault(key, def);
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="settings">System Settings</h1>
+        <p class="page-subtitle" data-t="settingsSubtitle">Configure your restaurant ERP</p>
+    </div>
+    <button class="btn btn-primary" onclick="saveAllSettings()">
+        <i class="fas fa-save me-2"></i><span data-t="saveSettings">Save Settings</span>
+    </button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+    <!-- Organization Info -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-building me-2" style="color:var(--primary)"></i><span data-t="orgInfo">Organization Info</span></h3>
+        </div>
+        <div class="card-body" style="padding:24px">
+            <div class="form-group">
+                <label class="form-label">Organization Name (Arabic)</label>
+                <input type="text" id="OrgName" class="form-control" value="@Get("OrgName")" dir="rtl">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Organization Name (English)</label>
+                <input type="text" id="OrgNameEn" class="form-control" value="@Get("OrgNameEn")">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="text" id="Phone" class="form-control" value="@Get("Phone")">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <textarea id="Address" class="form-control" rows="2">@Get("Address")</textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Website</label>
+                <input type="text" id="Website" class="form-control" value="@Get("Website")">
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-coins me-2" style="color:var(--primary)"></i><span data-t="financialSettings">Financial Settings</span></h3>
+        </div>
+        <div class="card-body" style="padding:24px">
+            <div class="form-group">
+                <label class="form-label">Tax Rate (%)</label>
+                <input type="number" id="TaxRate" class="form-control" value="@Get("TaxRate","14")" min="0" max="100" step="0.5">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group">
+                    <label class="form-label">Currency (EN)</label>
+                    <input type="text" id="Currency" class="form-control" value="@Get("Currency","EGP")">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Currency (AR)</label>
+                    <input type="text" id="CurrencyAr" class="form-control" value="@Get("CurrencyAr","ج.م")" dir="rtl">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Discount (%)</label>
+                <input type="number" id="DefaultDiscount" class="form-control" value="@Get("DefaultDiscount","0")" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Receipt Footer Note (EN)</label>
+                <input type="text" id="ReceiptFooter" class="form-control" value="@Get("ReceiptFooter","Thank you for your visit!")">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Receipt Footer Note (AR)</label>
+                <input type="text" id="ReceiptFooterAr" class="form-control" value="@Get("ReceiptFooterAr","شكراً لزيارتكم")" dir="rtl">
+            </div>
+        </div>
+    </div>
+
+    <!-- POS Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-cash-register me-2" style="color:var(--primary)"></i><span data-t="posSettings">POS Settings</span></h3>
+        </div>
+        <div class="card-body" style="padding:24px">
+            <div class="form-group">
+                <label class="form-label">Default Order Type</label>
+                <select id="DefaultOrderType" class="form-control">
+                    <option value="DineIn" selected = "@(Get("DefaultOrderType")=="DineIn"?"selected":"")">Dine In</option>
+                    <option value="Takeaway" selected ="@(Get("DefaultOrderType")=="Takeaway"?"selected":"")">Takeaway</option>
+                    <option value="Delivery" selected = "@(Get("DefaultOrderType")=="Delivery"?"selected":"")">Delivery</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Payment Method</label>
+                <select id="DefaultPayment" class="form-control">
+                    <option value="Cash"selected = " @(Get("DefaultPayment")=="Cash"?"selected":"")">Cash</option>
+                    <option value="Card" selected=" @(Get("DefaultPayment") == "Card" ? "selected" : "")">Card</option>
+                        <option value="Digital" selected="@(Get("DefaultPayment")=="Digital"?"selected":"")">Digital Wallet</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label d-flex align-items-center gap-3">
+                    <input type="checkbox" id="AutoPrint" @(Get("AutoPrint")=="true"?"checked":"") style="width:18px;height:18px">
+                    Auto Print Invoice After Order
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label d-flex align-items-center gap-3">
+                    <input type="checkbox" id="RequireTable" @(Get("RequireTable")=="true"?"checked":"") style="width:18px;height:18px">
+                    Require Table Selection for Dine-In
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-cog me-2" style="color:var(--primary)"></i><span data-t="systemSettings">System Settings</span></h3>
+        </div>
+        <div class="card-body" style="padding:24px">
+            <div class="form-group">
+                <label class="form-label">Low Stock Alert Threshold</label>
+                <input type="number" id="LowStockThreshold" class="form-control" value="@Get("LowStockThreshold","10")" min="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Shift Duration (hours)</label>
+                <input type="number" id="ShiftDuration" class="form-control" value="@Get("ShiftDuration","8")" min="1" max="24">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kitchen Display Refresh (seconds)</label>
+                <input type="number" id="KitchenRefresh" class="form-control" value="@Get("KitchenRefresh","30")" min="5">
+            </div>
+            <div class="form-group">
+                <label class="form-label d-flex align-items-center gap-3">
+                    <input type="checkbox" id="EnableInventory" @(Get("EnableInventory","true")=="true"?"checked":"") style="width:18px;height:18px">
+                    Enable Inventory Tracking
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Card -->
+<div class="card" style="margin-top:24px">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-print me-2" style="color:var(--primary)"></i><span data-t="receiptPreview">Receipt Preview</span></h3>
+        <button class="btn btn-outline btn-sm" onclick="previewReceipt()"><i class="fas fa-eye me-2"></i>Preview</button>
+    </div>
+    <div class="card-body" style="padding:24px;display:flex;justify-content:center">
+        <div id="receiptPreview" style="font-family:'Cairo',sans-serif;max-width:280px;width:100%;padding:20px;border:1px dashed var(--border-color);border-radius:8px;text-align:center;font-size:13px">
+            <h3 style="margin:0;font-size:16px">@Get("OrgName","نادي مصنع الطائرات")</h3>
+            <p style="margin:4px 0;font-size:12px;color:var(--text-muted)">@Get("OrgNameEn","Aircraft Factory Club")</p>
+            <p style="margin:0;font-size:11px;color:var(--text-muted)">@Get("Phone","")</p>
+            <div style="border-top:1px dashed var(--border-color);margin:12px 0;padding-top:12px;text-align:left">
+                <div style="display:flex;justify-content:space-between"><span>Item 1 x2</span><span>100.00 @Get("Currency","EGP")</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Item 2 x1</span><span>50.00 @Get("Currency","EGP")</span></div>
+            </div>
+            <div style="border-top:1px dashed var(--border-color);padding-top:12px;text-align:left">
+                <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>150.00</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Tax (@Get("TaxRate","14")%):</span><span>21.00</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;margin-top:4px"><span>Total:</span><span>171.00 @Get("Currency","EGP")</span></div>
+            </div>
+            <div style="border-top:1px dashed var(--border-color);margin-top:12px;padding-top:10px;font-size:11px;color:var(--text-muted)">
+                <p style="margin:0">@Get("ReceiptFooterAr","شكراً لزيارتكم")</p>
+                <p style="margin:2px 0">@Get("ReceiptFooter","Thank you for your visit!")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+async function saveAllSettings() {
+    const settings = {};
+    ['OrgName','OrgNameEn','Phone','Address','Website','TaxRate','Currency','CurrencyAr',
+     'DefaultDiscount','ReceiptFooter','ReceiptFooterAr','DefaultOrderType','DefaultPayment',
+     'LowStockThreshold','ShiftDuration','KitchenRefresh'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) settings[id] = el.value;
+    });
+    ['AutoPrint','RequireTable','EnableInventory'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) settings[id] = el.checked ? 'true' : 'false';
+    });
+    try {
+        const res = await API.post('/Admin/SaveSettings', settings);
+        if (res.success) Toast.success('Settings saved successfully!');
+        else Toast.error(res.message || 'Failed to save settings');
+    } catch(e) { Toast.error('Error saving settings'); }
+}
+
+function previewReceipt() {
+    const orgName = document.getElementById('OrgName').value;
+    const orgNameEn = document.getElementById('OrgNameEn').value;
+    const phone = document.getElementById('Phone').value;
+    const taxRate = document.getElementById('TaxRate').value;
+    const currency = document.getElementById('Currency').value;
+    const footer = document.getElementById('ReceiptFooter').value;
+    const footerAr = document.getElementById('ReceiptFooterAr').value;
+    const html = `
+        <div style="font-family:'Cairo',sans-serif;max-width:300px;margin:0 auto;padding:20px;text-align:center">
+            <h2 style="margin:0;font-size:18px">${orgName}</h2>
+            <p style="margin:4px 0;font-size:12px">${orgNameEn}</p>
+            <p style="margin:0;font-size:11px">${phone}</p>
+            <div style="border-top:1px dashed #333;margin:12px 0;padding-top:12px;text-align:left;font-size:12px">
+                <div style="display:flex;justify-content:space-between"><span>Sample Item x2</span><span>100.00</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Sample Item x1</span><span>50.00</span></div>
+            </div>
+            <div style="border-top:1px dashed #333;padding-top:12px;text-align:left;font-size:12px">
+                <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>150.00</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Tax (${taxRate}%):</span><span>21.00</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;margin-top:4px"><span>Total:</span><span>171.00 ${currency}</span></div>
+            </div>
+            <div style="border-top:1px dashed #333;margin-top:12px;padding-top:10px;font-size:11px">
+                <p style="margin:0">${footerAr}</p>
+                <p style="margin:2px 0">${footer}</p>
+            </div>
+        </div>`;
+    printInvoice(html);
+}
+</script>
+}

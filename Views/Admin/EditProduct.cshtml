@@ -1,0 +1,130 @@
+@model RestaurantERP.Models.Product
+@{
+    ViewBag.PageTitle = "تعديل المنتج";
+    var categories = ViewBag.Categories as List<RestaurantERP.Models.Category> ?? new();
+}
+
+<div style="max-width:700px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <a href="/Admin/Products" class="btn btn-outline btn-sm">← رجوع</a>
+        <h2 style="font-size:20px;font-weight:800">تعديل المنتج: @Model.NameAr</h2>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" asp-action="EditProduct" asp-route-id="@Model.Id">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id">
+                <input type="hidden" asp-for="CreatedAt">
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label">اسم المنتج (عربي) *</label>
+                        <input asp-for="NameAr" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Product Name (English) *</label>
+                        <input asp-for="Name" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label">الوصف (عربي)</label>
+                        <textarea asp-for="DescriptionAr" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description (English)</label>
+                        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label">سعر البيع (ج.م) *</label>
+                        <input asp-for="Price" type="number" class="form-control" step="0.01" min="0" required id="priceInput" oninput="calcProfit()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">سعر التكلفة (ج.م)</label>
+                        <input asp-for="CostPrice" type="number" class="form-control" step="0.01" min="0" id="costInput" oninput="calcProfit()">
+                    </div>
+                </div>
+
+                <div class="alert alert-info" id="profitAlert" style="display:none;margin-bottom:16px">
+                    💹 الربح: <strong id="profitVal">0</strong> ج.م | هامش الربح: <strong id="marginVal">0%</strong>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">الفئة *</label>
+                    <select asp-for="CategoryId" class="form-control" required>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id">@cat.Icon @cat.NameAr / @cat.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">باركود</label>
+                    <input asp-for="Barcode" class="form-control">
+                </div>
+
+                <div class="grid grid-2" style="gap:16px;margin-bottom:16px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px">
+                        <input asp-for="IsActive" type="checkbox" style="width:16px;height:16px">
+                        <span style="font-size:14px;font-weight:600">نشط في النظام</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px">
+                        <input asp-for="IsAvailable" type="checkbox" style="width:16px;height:16px">
+                        <span style="font-size:14px;font-weight:600">متاح للطلب</span>
+                    </label>
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:16px">
+                    <input asp-for="TrackStock" type="checkbox" style="width:16px;height:16px" id="trackStock" onchange="toggleStock()">
+                    <span style="font-size:14px;font-weight:600">تتبع المخزون</span>
+                </label>
+
+                <div id="stockSection" style="display:none">
+                    <div class="grid grid-2" style="gap:16px">
+                        <div class="form-group">
+                            <label class="form-label">الكمية الحالية</label>
+                            <input asp-for="StockQuantity" type="number" class="form-control" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">حد التنبيه</label>
+                            <input asp-for="MinStockAlert" type="number" class="form-control" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <a href="/Admin/Products" class="btn btn-outline">إلغاء</a>
+                    <button type="submit" class="btn btn-accent">💾 حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function calcProfit() {
+    const price = parseFloat(document.getElementById('priceInput').value) || 0;
+    const cost = parseFloat(document.getElementById('costInput').value) || 0;
+    const profit = price - cost;
+    const margin = price > 0 ? (profit / price * 100).toFixed(1) : 0;
+    const alert = document.getElementById('profitAlert');
+    if (price > 0) {
+        alert.style.display = 'flex';
+        document.getElementById('profitVal').textContent = profit.toFixed(2);
+        document.getElementById('marginVal').textContent = margin + '%';
+        alert.className = profit >= 0 ? 'alert alert-success' : 'alert alert-danger';
+    }
+}
+function toggleStock() {
+    document.getElementById('stockSection').style.display = document.getElementById('trackStock').checked ? 'block' : 'none';
+}
+document.addEventListener('DOMContentLoaded', () => { toggleStock(); calcProfit(); });
+</script>
+}

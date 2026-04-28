@@ -1,0 +1,222 @@
+@model IEnumerable<RestaurantERP.Models.Order>
+@{
+    ViewData["Title"] = "Order History";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="orderHistory">Order History</h1>
+        <p class="page-subtitle" data-t="todayOrders">Your orders for today's shift</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <input type="text" id="searchInput" class="form-control" style="max-width:250px"
+                   data-placeholder-t="searchOrders" placeholder="Search orders..." oninput="filterTable()">
+            <select id="statusFilter" class="form-control" style="max-width:180px" onchange="filterTable()">
+                <option value="" data-t="allStatuses">All Statuses</option>
+                <option value="Pending" data-t="pending">Pending</option>
+                <option value="Preparing" data-t="preparing">Preparing</option>
+                <option value="Ready" data-t="ready">Ready</option>
+                <option value="Completed" data-t="completed">Completed</option>
+                <option value="Cancelled" data-t="cancelled">Cancelled</option>
+            </select>
+            <select id="typeFilter" class="form-control" style="max-width:180px" onchange="filterTable()">
+                <option value="" data-t="allTypes">All Types</option>
+                <option value="DineIn" data-t="dineIn">Dine In</option>
+                <option value="Takeaway" data-t="takeaway">Takeaway</option>
+                <option value="Delivery" data-t="delivery">Delivery</option>
+            </select>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge badge-success" id="totalCount">@Model.Count() <span data-t="orders">orders</span></span>
+            <span class="badge badge-primary" id="totalRevenue">@Model.Where(o => o.Status == RestaurantERP.Models.OrderStatus.Completed).Sum(o => o.Total).ToString("F2") EGP</span>
+        </div>
+    </div>
+    <div class="table-container">
+        <table class="data-table" id="ordersTable">
+            <thead>
+                <tr>
+                    <th data-t="orderNo">Order #</th>
+                    <th data-t="type">Type</th>
+                    <th data-t="items">Items</th>
+                    <th data-t="total">Total</th>
+                    <th data-t="payment">Payment</th>
+                    <th data-t="status">Status</th>
+                    <th data-t="time">Time</th>
+                    <th data-t="actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.OrderByDescending(o => o.CreatedAt))
+                {
+                    <tr data-status="@order.Status" data-type="@order.OrderType">
+                        <td><strong>@order.OrderNumber</strong></td>
+                        <td>
+                            <span class="badge @(order.OrderType == RestaurantERP.Models.OrderType.DineIn ? "badge-primary" : order.OrderType == RestaurantERP.Models.OrderType.Takeaway ? "badge-warning" : "badge-info")">
+                                @order.OrderType
+                            </span>
+                        </td>
+                        <td>@order.Items?.Count</td>
+                        <td><strong>@order.Total.ToString("F2") EGP</strong></td>
+                        <td>@order.PaymentMethod</td>
+                        <td>
+                            <span class="badge @(order.Status == RestaurantERP.Models.OrderStatus.Completed ? "badge-success" : order.Status == RestaurantERP.Models.OrderStatus.Cancelled ? "badge-danger" : order.Status == RestaurantERP.Models.OrderStatus.Preparing ? "badge-warning" : "badge-primary")">
+                                @order.Status
+                            </span>
+                        </td>
+                        <td>@order.CreatedAt.ToString("hh:mm tt")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline" onclick="viewOrderDetails(@order.Id)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="reprintInvoice(@order.Id)">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal-overlay" id="orderDetailModal">
+    <div class="modal" style="max-width:550px">
+        <div class="modal-header">
+            <h3 class="modal-title" data-t="orderDetails">Order Details</h3>
+            <button class="modal-close" onclick="Modal.close('orderDetailModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="orderDetailContent">
+            <div class="loading-spinner" style="text-align:center;padding:40px">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function filterTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            const rows = document.querySelectorAll('#ordersTable tbody tr');
+            let visible = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const rowStatus = row.dataset.status;
+                const rowType = row.dataset.type;
+                const show = (!search || text.includes(search)) &&
+                             (!status || rowStatus === status) &&
+                             (!type || rowType === type);
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+        }
+
+        async function viewOrderDetails(id) {
+            Modal.open('orderDetailModal');
+            try {
+                const data = await API.get(`/Cashier/GetOrderForPrint?orderId=${id}`);
+                if (data.success) {
+                    const o = data.order;
+                    document.getElementById('orderDetailContent').innerHTML = `
+                        <div style="border-bottom:1px solid var(--border-color);padding-bottom:16px;margin-bottom:16px">
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:8px">
+                                <span style="color:var(--text-muted)">Order #</span>
+                                <strong>${o.orderNumber}</strong>
+                            </div>
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:8px">
+                                <span style="color:var(--text-muted)">Type</span>
+                                <span>${o.orderType}</span>
+                            </div>
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:8px">
+                                <span style="color:var(--text-muted)">Status</span>
+                                <span>${o.status}</span>
+                            </div>
+                            <div class="d-flex" style="justify-content:space-between">
+                                <span style="color:var(--text-muted)">Payment</span>
+                                <span>${o.paymentMethod}</span>
+                            </div>
+                        </div>
+                        <div style="border-bottom:1px solid var(--border-color);padding-bottom:16px;margin-bottom:16px">
+                            ${(o.items||[]).map(i=>`
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:8px">
+                                <span style="direction:rtl;text-align:right">${i.productNameAr || i.productName} x${i.quantity}</span>
+                                <span>${(i.unitPrice * i.quantity).toFixed(2)} EGP</span>
+                            </div>`).join('')}
+                        </div>
+                        <div>
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:6px">
+                                <span style="color:var(--text-muted)">Subtotal</span>
+                                <span>${o.subTotal?.toFixed(2)} EGP</span>
+                            </div>
+                            <div class="d-flex" style="justify-content:space-between;margin-bottom:6px">
+                                <span style="color:var(--text-muted)">Tax (14%)</span>
+                                <span>${o.taxAmount?.toFixed(2)} EGP</span>
+                            </div>
+                            ${o.discountAmount > 0 ? `<div class="d-flex" style="justify-content:space-between;margin-bottom:6px"><span style="color:var(--text-muted)">Discount</span><span style="color:var(--danger)">-${o.discountAmount?.toFixed(2)} EGP</span></div>` : ''}
+                            <div class="d-flex" style="justify-content:space-between;font-size:18px;font-weight:700;margin-top:8px;padding-top:8px;border-top:2px solid var(--border-color)">
+                                <span>Total</span>
+                                <span style="color:var(--primary)">${o.total?.toFixed(2)} EGP</span>
+                            </div>
+                        </div>
+                        <div style="margin-top:20px;display:flex;gap:10px">
+                            <button class="btn btn-primary w-100" onclick="reprintInvoice(${id})"><i class="fas fa-print me-2"></i>Reprint</button>
+                        </div>
+                    `;
+                }
+            } catch(e) {
+                document.getElementById('orderDetailContent').innerHTML = '<p style="color:var(--danger)">Failed to load order.</p>';
+            }
+        }
+
+        async function reprintInvoice(id) {
+            try {
+                const data = await API.get(`/Cashier/GetOrderForPrint?orderId=${id}`);
+                if (data.success) {
+                    const o = data.order;
+                    const itemsHtml = (o.items||[]).map(i =>
+                        `<tr><td style="text-align:right;direction:rtl">${i.productNameAr || i.productName}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${(i.unitPrice*i.quantity).toFixed(2)}</td></tr>`
+                    ).join('');
+                    const html = `
+                        <div style="font-family:'Cairo',sans-serif;max-width:300px;margin:0 auto;padding:10px">
+                            <div style="text-align:center;border-bottom:2px dashed #333;padding-bottom:10px;margin-bottom:10px">
+                                <h2 style="margin:0;font-size:18px">نادي مصنع الطائرات</h2>
+                                <p style="margin:4px 0;font-size:12px">Aircraft Factory Club</p>
+                                <p style="margin:0;font-size:11px">Tel: 01000000000</p>
+                            </div>
+                            <div style="font-size:12px;margin-bottom:10px">
+                                <div>Order: <strong>${o.orderNumber}</strong></div>
+                                <div>Date: ${new Date().toLocaleString('ar-EG')}</div>
+                                <div>Type: ${o.orderType}</div>
+                                <div>Cashier: ${o.cashierName||'N/A'}</div>
+                            </div>
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;border-top:1px dashed #333;border-bottom:1px dashed #333;direction:rtl">
+                                <thead><tr><th style="text-align:right;padding:4px">الصنف</th><th style="text-align:center;padding:4px">الكمية</th><th style="text-align:right;padding:4px">السعر</th></tr></thead>
+                                <tbody>${itemsHtml}</tbody>
+                            </table>
+                            <div style="font-size:12px;margin-top:10px">
+                                <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>${o.subTotal?.toFixed(2)} EGP</span></div>
+                                <div style="display:flex;justify-content:space-between"><span>Tax (14%):</span><span>${o.taxAmount?.toFixed(2)} EGP</span></div>
+                                ${o.discountAmount>0?`<div style="display:flex;justify-content:space-between"><span>Discount:</span><span>-${o.discountAmount?.toFixed(2)} EGP</span></div>`:''}
+                                <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:1px dashed #333;margin-top:6px;padding-top:6px"><span>TOTAL:</span><span>${o.total?.toFixed(2)} EGP</span></div>
+                                <div style="display:flex;justify-content:space-between"><span>Paid:</span><span>${o.amountPaid?.toFixed(2)} EGP</span></div>
+                                <div style="display:flex;justify-content:space-between"><span>Change:</span><span>${o.change?.toFixed(2)} EGP</span></div>
+                            </div>
+                            <div style="text-align:center;margin-top:16px;font-size:11px;border-top:1px dashed #333;padding-top:10px">
+                                <p style="margin:0">شكراً لزيارتكم</p>
+                                <p style="margin:0">Thank you for your visit!</p>
+                            </div>
+                        </div>`;
+                    printInvoice(html);
+                }
+            } catch(e) { Toast.error('Failed to load invoice'); }
+        }
+    </script>
+}

@@ -1,0 +1,164 @@
+@model IEnumerable<RestaurantERP.Models.Product>
+@{
+    ViewBag.PageTitle = "إدارة المنتجات";
+    var categories = ViewBag.Categories as List<RestaurantERP.Models.Category> ?? new();
+}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div>
+        <h2 style="font-size:22px;font-weight:800" data-t="products">المنتجات</h2>
+        <p style="color:var(--text-secondary);font-size:13px">@Model.Count() منتج في النظام</p>
+    </div>
+    <a href="/Admin/CreateProduct" class="btn btn-accent">
+        <span>➕</span> <span data-t="add-product">إضافة منتج</span>
+    </a>
+</div>
+
+<!-- FILTERS -->
+<div class="card mb-4">
+    <div class="card-body" style="padding:16px">
+        <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+            <div style="flex:1;min-width:200px">
+                <div class="search-bar">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" name="search" value="@ViewBag.Search" placeholder="بحث في المنتجات..." data-t-placeholder="search" class="form-control">
+                </div>
+            </div>
+            <div>
+                <select name="categoryId" class="form-control" style="min-width:150px">
+                    <option value="">كل الفئات</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat.Id" selected="@(ViewBag.CategoryId?.ToString() == cat.Id.ToString())">
+                            @cat.Icon @cat.NameAr / @cat.Name
+                        </option>
+                    }
+                </select>
+            </div>
+            <div>
+                <select name="active" class="form-control">
+                    <option value="">كل الحالات</option>
+                    <option value="true">نشط</option>
+                    <option value="false">غير نشط</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">🔍 بحث</button>
+            <a href="/Admin/Products" class="btn btn-outline">إعادة تعيين</a>
+        </form>
+    </div>
+</div>
+
+<!-- PRODUCTS TABLE -->
+<div class="card">
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th data-t="name">الاسم</th>
+                    <th data-t="category">الفئة</th>
+                    <th data-t="selling-price">سعر البيع</th>
+                    <th data-t="cost-price">التكلفة</th>
+                    <th>الربح</th>
+                    <th data-t="stock-qty">المخزون</th>
+                    <th data-t="status">الحالة</th>
+                    <th data-t="actions">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    var profit = p.Price - p.CostPrice;
+                    var margin = p.Price > 0 ? (profit / p.Price) * 100 : 0;
+                    <tr id="row-@p.Id">
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div class="prod-img">@(p.Category?.Icon ?? "🍽️")</div>
+                                <div>
+                                    <div style="font-weight:600">
+                                        <span data-lang="ar">@p.NameAr</span>
+                                        <span data-lang="en" style="display:none">@p.Name</span>
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-muted)">@p.Name</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge" style="background:@(p.Category?.ColorHex ?? "#ccc")20;color:@(p.Category?.ColorHex ?? "#333")">
+                                @p.Category?.Icon @p.Category?.NameAr
+                            </span>
+                        </td>
+                        <td><strong style="color:var(--primary-light)">@p.Price.ToString("N2") ج.م</strong></td>
+                        <td>@p.CostPrice.ToString("N2") ج.م</td>
+                        <td>
+                            <span style="color:var(--success);font-weight:600">@profit.ToString("N2") ج.م</span>
+                            <div style="font-size:11px;color:var(--text-muted)">@margin.ToString("N0")%</div>
+                        </td>
+                        <td>
+                            @if (p.TrackStock)
+                            {
+                                <span class="badge @(p.StockQuantity <= p.MinStockAlert ? "badge-danger" : "badge-success")">
+                                    @p.StockQuantity
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-secondary">غير محدد</span>
+                            }
+                        </td>
+                        <td>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <span class="badge @(p.IsActive ? "badge-success" : "badge-danger")">
+                                    @(p.IsActive ? "نشط" : "غير نشط")
+                                </span>
+                                <span class="badge @(p.IsAvailable ? "badge-primary" : "badge-secondary")">
+                                    @(p.IsAvailable ? "متاح" : "غير متاح")
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <a href="/Admin/EditProduct/@p.Id" class="btn btn-outline btn-sm" title="تعديل">✏️</a>
+                                <button class="btn btn-outline btn-sm" onclick="toggleProduct(@p.Id, this)" title="تغيير التوافر">
+                                    @(p.IsAvailable ? "🔴" : "🟢")
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteProduct(@p.Id)" title="حذف">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            <div style="font-size:48px;margin-bottom:12px">🍽️</div>
+                            <p>لا توجد منتجات</p>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+async function toggleProduct(id, btn) {
+    const res = await API.post(`/Admin/ToggleProduct`, id);
+    if (res.success) {
+        btn.textContent = res.isAvailable ? '🔴' : '🟢';
+        Toast.success(res.isAvailable ? 'المنتج متاح الآن' : 'تم إيقاف المنتج');
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+    const res = await API.post(`/Admin/DeleteProduct?id=${id}`, {});
+    if (res.success) {
+        document.getElementById(`row-${id}`)?.remove();
+        Toast.success('تم حذف المنتج');
+    } else {
+        Toast.error('لا يمكن حذف هذا المنتج');
+    }
+}
+</script>
+}

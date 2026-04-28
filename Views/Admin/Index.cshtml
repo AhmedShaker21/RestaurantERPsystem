@@ -1,0 +1,321 @@
+@model RestaurantERP.Services.DashboardStats
+@{
+    ViewBag.PageTitle = "لوحة التحكم";
+    var lang = Context.Request.Cookies["erp-lang"] ?? "ar";
+}
+
+<!-- STAT CARDS -->
+<div class="grid grid-4 mb-6">
+    <div class="stat-card" style="--stat-color:#2563a8">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+            <div class="stat-value">@Model.TodaySales.ToString("N0")</div>
+            <div class="stat-label" data-t="today-sales">مبيعات اليوم</div>
+            <span class="stat-trend up">ج.م</span>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color:#22c55e">
+        <div class="stat-icon">📋</div>
+        <div class="stat-info">
+            <div class="stat-value">@Model.TodayOrders</div>
+            <div class="stat-label" data-t="total-orders">طلبات اليوم</div>
+            <span class="stat-trend @(Model.RevenueGrowth >= 0 ? "up" : "down")">
+                @(Model.RevenueGrowth >= 0 ? "↑" : "↓") @Math.Abs(Model.RevenueGrowth)%
+            </span>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color:#f59e0b">
+        <div class="stat-icon">📈</div>
+        <div class="stat-info">
+            <div class="stat-value">@Model.MonthSales.ToString("N0")</div>
+            <div class="stat-label" data-t="monthly-revenue">إيرادات الشهر</div>
+            <span class="stat-trend @(Model.RevenueGrowth >= 0 ? "up" : "down")">
+                @(Model.RevenueGrowth >= 0 ? "+" : "")@Model.RevenueGrowth%
+            </span>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color:#ef4444">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+            <div class="stat-value">@Model.PendingOrders</div>
+            <div class="stat-label" data-t="pending-orders">طلبات معلقة</div>
+            @if (Model.LowStockCount > 0)
+            {
+                <span class="stat-trend down">⚠️ @Model.LowStockCount <span data-t="low-stock">مخزون منخفض</span></span>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="grid grid-2 mb-6">
+    <!-- Revenue Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="sales-analytics">تحليل المبيعات - آخر 30 يوم</h3>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="switchChart('revenue')" id="btnRevenue">إيراد</button>
+                <button class="btn btn-outline btn-sm" onclick="switchChart('orders')" id="btnOrders">طلبات</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height:260px">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Pie -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">الإيرادات حسب الفئة</h3>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height:260px">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOTTOM ROW -->
+<div class="grid grid-2">
+    <!-- Top Products -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="top-products">أعلى المنتجات مبيعاً</h3>
+            <a href="/Admin/Products" class="btn btn-outline btn-sm">عرض الكل</a>
+        </div>
+        <div class="card-body" style="padding:0">
+            @foreach (var (p, i) in Model.TopProducts.Select((p, i) => (p, i)))
+            {
+                var maxRevenue = Model.TopProducts.Any() ? Model.TopProducts.Max(x => x.Revenue) : 0;
+                var pct = maxRevenue > 0 ? (p.Revenue / maxRevenue) * 100 : 0;
+
+                <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+                    <div style="width:28px;height:28px;background:var(--primary-light);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0">@(i + 1)</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:13px;font-weight:600;margin-bottom:4px">
+                            <span data-lang="ar">@(string.IsNullOrWhiteSpace(p.NameAr) ? p.Name : p.NameAr)</span>
+                            <span data-lang="en" style="display:none">@p.Name</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar" style="width:@pct%"></div></div>
+                    </div>
+                    <div style="text-align:left;flex-shrink:0">
+                        <div style="font-size:13px;font-weight:800;color:var(--primary-light)">@p.Revenue.ToString("N0")</div>
+                        <div style="font-size:11px;color:var(--text-muted)">@p.Quantity قطعة</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">إجراءات سريعة</h3>
+            </div>
+            <div class="card-body">
+                <div class="grid grid-2" style="gap:10px">
+                    <a href="/Cashier/Index" class="btn btn-primary" style="justify-content:center;padding:16px">💰 كاشير جديد</a>
+                    <a href="/Admin/CreateProduct" class="btn btn-accent" style="justify-content:center;padding:16px">➕ منتج جديد</a>
+                    <a href="/Admin/Orders" class="btn btn-outline" style="justify-content:center;padding:16px">📋 الطلبات</a>
+                    <a href="/Admin/Reports" class="btn btn-outline" style="justify-content:center;padding:16px">📈 التقارير</a>
+                    <a href="/Admin/Inventory" class="btn btn-outline" style="justify-content:center;padding:16px">📦 المخزون</a>
+                    <a href="/Admin/Users" class="btn btn-outline" style="justify-content:center;padding:16px">👥 المستخدمون</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">ملخص الشهر</h3>
+            </div>
+            <div class="card-body">
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px">
+                    <span style="color:var(--text-secondary)" data-t="total-orders">إجمالي الطلبات</span>
+                    <strong>@Model.MonthOrders</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px">
+                    <span style="color:var(--text-secondary)">متوسط الطلب</span>
+                    <strong>@(Model.MonthOrders > 0 ? (Model.MonthSales / Model.MonthOrders).ToString("N0") : "0") ج.م</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px">
+                    <span style="color:var(--text-secondary)" data-t="revenue-growth">نمو الإيرادات</span>
+                    <strong class="@(Model.RevenueGrowth >= 0 ? "text-success" : "text-danger")">
+                        @(Model.RevenueGrowth >= 0 ? "+" : "")@Model.RevenueGrowth%
+                    </strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const dailyData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    Model.DailySales.Select(d => new
+                    {
+                            date = d.Date.ToString("MM/dd"),
+                            revenue = d.Revenue,
+                            orders = d.Orders
+                    })
+            ));
+
+        const catData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    Model.CategoryRevenue.Select(c => new
+                    {
+                            name = c.Name,
+                            nameAr = c.NameAr,
+                            colorHex = c.ColorHex,
+                            revenue = c.Revenue
+                    })
+            ));
+
+        let currentChart = null;
+        let categoryChartInstance = null;
+
+        function destroyChart(chart) {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        }
+
+        function renderRevenueChart(type) {
+            destroyChart(currentChart);
+
+            const labels = dailyData.map(d => d.date || '');
+            const isAr = localStorage.getItem('erp-lang') !== 'en';
+
+            currentChart = createChart('revenueChart', {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: type === 'revenue'
+                            ? (isAr ? 'الإيراد (ج.م)' : 'Revenue (EGP)')
+                            : (isAr ? 'الطلبات' : 'Orders'),
+                        data: type === 'revenue'
+                            ? dailyData.map(d => Number(d.revenue || 0))
+                            : dailyData.map(d => Number(d.orders || 0)),
+                        borderColor: '#2563a8',
+                        backgroundColor: 'rgba(37,99,168,0.08)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2563a8',
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function switchChart(type) {
+            document.getElementById('btnRevenue').classList.toggle('btn-primary', type === 'revenue');
+            document.getElementById('btnRevenue').classList.toggle('btn-outline', type !== 'revenue');
+            document.getElementById('btnOrders').classList.toggle('btn-primary', type === 'orders');
+            document.getElementById('btnOrders').classList.toggle('btn-outline', type !== 'orders');
+            renderRevenueChart(type);
+        }
+
+        function getCategoryLabel(c) {
+            const isEnglish = localStorage.getItem('erp-lang') === 'en';
+            const englishName = c.name || c.Name || '';
+            const arabicName = c.nameAr || c.NameAr || '';
+
+            if (isEnglish) {
+                return englishName || arabicName || 'Other';
+            }
+
+            return arabicName || englishName || 'أخرى';
+        }
+
+        function getCategoryRevenue(c) {
+            return Number(c.revenue ?? c.Revenue ?? 0);
+        }
+
+        function getCategoryColor(c) {
+            return c.colorHex || c.ColorHex || '#999999';
+        }
+
+        function renderCategoryChart() {
+            destroyChart(categoryChartInstance);
+
+            const validCategories = catData.filter(c => getCategoryRevenue(c) > 0);
+
+            const labels = validCategories.length > 0
+                ? validCategories.map(c => getCategoryLabel(c))
+                : ['لا توجد بيانات'];
+
+            const values = validCategories.length > 0
+                ? validCategories.map(c => getCategoryRevenue(c))
+                : [1];
+
+            const colors = validCategories.length > 0
+                ? validCategories.map(c => getCategoryColor(c))
+                : ['#d1d5db'];
+
+            categoryChartInstance = createChart('categoryChart', {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#1e293b' : '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: { size: 12 },
+                                padding: 12,
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // Debug لو احتجت تشوف الداتا في Console
+        console.log('dailyData:', dailyData);
+        console.log('catData:', catData);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderRevenueChart('revenue');
+            renderCategoryChart();
+
+            document.getElementById('btnRevenue').classList.add('btn-primary');
+            document.getElementById('btnRevenue').classList.remove('btn-outline');
+        });
+
+        // Redraw on theme change
+        const observer = new MutationObserver(() => {
+            renderRevenueChart('revenue');
+            renderCategoryChart();
+        });
+
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    </script>
+}

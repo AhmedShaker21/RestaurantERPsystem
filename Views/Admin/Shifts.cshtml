@@ -1,0 +1,126 @@
+@model IEnumerable<RestaurantERP.Models.Shift>
+@{
+    ViewData["Title"] = "Shifts";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var activeShifts = Model.Where(s => !s.IsClosed).ToList();
+    var closedShifts = Model.Where(s => s.IsClosed).ToList();
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="shifts">Shifts</h1>
+        <p class="page-subtitle">
+            @activeShifts.Count <span data-t="activeShifts">active</span> /
+            @closedShifts.Count <span data-t="closedShifts">closed</span>
+        </p>
+    </div>
+</div>
+
+@if (activeShifts.Any())
+{
+    <div style="margin-bottom:24px">
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;color:var(--primary)" data-t="activeShifts">
+            Active Shifts
+        </h3>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+            @foreach (var shift in activeShifts)
+            {
+                var duration = DateTime.Now - shift.StartTime;
+                var ordersCount = shift.Orders?.Count ?? 0;
+
+                <div class="card" style="border-left:4px solid #4CAF50">
+                    <div class="card-body" style="padding:20px">
+                        <div class="d-flex align-items-center gap-3" style="margin-bottom:16px">
+                            <div style="width:48px;height:48px;border-radius:50%;background:#4CAF5022;color:#4CAF50;display:flex;align-items:center;justify-content:center;font-size:20px">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+
+                            <div>
+                                <div style="font-weight:700;font-size:16px">
+                                    @(shift.User?.UserName ?? "Unknown")
+                                </div>
+                                <div style="font-size:12px;color:var(--text-muted)">
+                                    Started: @shift.StartTime.ToString("hh:mm tt")
+                                </div>
+                            </div>
+
+                            <span class="badge badge-success" style="margin-left:auto">Active</span>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                            <div style="padding:10px;background:var(--bg-secondary);border-radius:8px;text-align:center">
+                                <div style="font-size:18px;font-weight:700">@ordersCount</div>
+                                <div style="font-size:11px;color:var(--text-muted)" data-t="orders">Orders</div>
+                            </div>
+
+                            <div style="padding:10px;background:var(--bg-secondary);border-radius:8px;text-align:center">
+                                <div style="font-size:18px;font-weight:700">@shift.TotalSales.ToString("F2")</div>
+                                <div style="font-size:11px;color:var(--text-muted)">EGP</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+                            <i class="fas fa-clock me-2"></i>
+                            Duration: @((int)duration.TotalHours)h @duration.Minutes m
+                        </div>
+
+                        <div style="font-size:13px;color:var(--text-muted)">
+                            Opening Cash: @shift.OpeningCash.ToString("F2") EGP
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title" data-t="shiftHistory">Shift History</h3>
+        <span class="badge badge-primary">@closedShifts.Count</span>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th data-t="cashier">Cashier</th>
+                    <th data-t="start">Start</th>
+                    <th data-t="end">End</th>
+                    <th data-t="duration">Duration</th>
+                    <th data-t="orders">Orders</th>
+                    <th data-t="totalSales">Total Sales</th>
+                    <th data-t="openingCash">Opening Cash</th>
+                    <th data-t="closingCash">Closing Cash</th>
+                    <th data-t="difference">Difference</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var shift in closedShifts.OrderByDescending(s => s.StartTime))
+                {
+                    var dur = (shift.EndTime ?? shift.StartTime) - shift.StartTime;
+                    var ordersCount = shift.Orders?.Count ?? 0;
+                    var closingCash = shift.ClosingCash;
+                    var diff = closingCash - shift.OpeningCash;
+
+                    <tr>
+                        <td><strong>@(shift.User?.UserName ?? "Unknown")</strong></td>
+                        <td>@shift.StartTime.ToString("MM/dd HH:mm")</td>
+                        <td>@(shift.EndTime?.ToString("MM/dd HH:mm") ?? "-")</td>
+                        <td>@((int)dur.TotalHours)h @dur.Minutes m</td>
+                        <td>@ordersCount</td>
+                        <td><strong>@shift.TotalSales.ToString("F2") EGP</strong></td>
+                        <td>@shift.OpeningCash.ToString("F2")</td>
+                        <td>@closingCash.ToString("F2")</td>
+                        <td style="color:@(diff >= 0 ? "var(--success)" : "var(--danger)");font-weight:600">
+                            @(diff >= 0 ? "+" : "")@diff.ToString("F2")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

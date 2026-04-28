@@ -1,0 +1,229 @@
+@{
+    ViewData["Title"] = "Reports";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="reports">Reports & Analytics</h1>
+        <p class="page-subtitle" data-t="comprehensiveReports">Comprehensive business insights</p>
+    </div>
+    <div class="d-flex gap-2">
+        <select id="reportPeriod" class="form-control" style="max-width:160px" onchange="loadReportData()">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option value="365">Last Year</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportReport()">
+            <i class="fas fa-download me-2"></i><span data-t="export">Export</span>
+        </button>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stats-grid" id="kpiCards" style="margin-bottom:24px">
+    @for(int i = 0; i < 4; i++) {
+        <div class="stat-card loading-skeleton">
+            <div class="stat-icon"></div>
+            <div class="stat-value">—</div>
+            <div class="stat-label">Loading...</div>
+        </div>
+    }
+</div>
+
+<!-- Charts Row -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:24px">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="revenueChart">Revenue Trend</h3>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-primary" onclick="switchChart('revenue')" id="btnRevenue" data-t="revenue">Revenue</button>
+                <button class="btn btn-sm btn-outline" onclick="switchChart('orders')" id="btnOrders" data-t="orders">Orders</button>
+            </div>
+        </div>
+        <div class="card-body" style="padding:20px">
+            <canvas id="trendChart" height="100"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="paymentMethods">Payment Methods</h3>
+        </div>
+        <div class="card-body" style="padding:20px">
+            <canvas id="paymentChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+    <!-- Top Products -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="topProducts">Top Selling Products</h3>
+        </div>
+        <div class="card-body" style="padding:20px" id="topProductsList">
+            <div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+        </div>
+    </div>
+
+    <!-- Category Revenue -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" data-t="categoryRevenue">Revenue by Category</h3>
+        </div>
+        <div class="card-body" style="padding:20px">
+            <canvas id="categoryChart" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Order Type Breakdown -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title" data-t="orderTypeBreakdown">Order Type Breakdown</h3>
+    </div>
+    <div class="card-body" style="padding:24px">
+        <div id="orderTypeBreakdown" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            @for(int i = 0; i < 3; i++) {
+                <div style="padding:20px;background:var(--bg-secondary);border-radius:12px;text-align:center">
+                    <div style="font-size:28px;font-weight:800;color:var(--primary)">—</div>
+                    <div style="color:var(--text-muted);font-size:13px;margin-top:4px">Loading...</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let trendChart, paymentChart, categoryChart;
+let reportData = null;
+let currentMetric = 'revenue';
+
+async function loadReportData() {
+    const days = document.getElementById('reportPeriod').value;
+    Loading.show();
+    try {
+        const data = await API.get(`/Admin/GetReportData?days=${days}`);
+        reportData = data;
+        renderKPIs(data);
+        renderTrendChart(data);
+        renderPaymentChart(data);
+        renderTopProducts(data);
+        renderCategoryChart(data);
+        renderOrderTypes(data);
+    } catch(e) {
+        Toast.error('Failed to load report data');
+    }
+    Loading.hide();
+}
+
+function renderKPIs(data) {
+    const cards = [
+        { label: 'Total Revenue', value: `${(data.totalRevenue||0).toFixed(0)} EGP`, icon: 'fa-coins', color: '#45B7D1', change: data.revenueGrowth },
+        { label: 'Total Orders', value: data.totalOrders || 0, icon: 'fa-receipt', color: '#4ECDC4', change: data.ordersGrowth },
+        { label: 'Avg Order Value', value: `${(data.avgOrderValue||0).toFixed(2)} EGP`, icon: 'fa-chart-bar', color: '#96CEB4', change: null },
+        { label: 'Total Customers', value: data.uniqueCustomers || '—', icon: 'fa-users', color: '#FFEAA7', change: null }
+    ];
+    document.getElementById('kpiCards').innerHTML = cards.map(c => `
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div class="stat-icon" style="background:${c.color}22;color:${c.color}"><i class="fas ${c.icon}"></i></div>
+                ${c.change != null ? `<span class="stat-change ${c.change>=0?'positive':'negative'}"><i class="fas fa-arrow-${c.change>=0?'up':'down'}"></i>${Math.abs(c.change).toFixed(1)}%</span>` : ''}
+            </div>
+            <div class="stat-value">${c.value}</div>
+            <div class="stat-label">${c.label}</div>
+        </div>`).join('');
+}
+
+function switchChart(metric) {
+    currentMetric = metric;
+    document.getElementById('btnRevenue').className = metric === 'revenue' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+    document.getElementById('btnOrders').className = metric === 'orders' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+    if (reportData) renderTrendChart(reportData);
+}
+
+function renderTrendChart(data) {
+    if (trendChart) trendChart.destroy();
+    const labels = (data.dailySales||[]).map(d => d.date);
+    const values = (data.dailySales||[]).map(d => currentMetric === 'revenue' ? d.revenue : d.orders);
+    trendChart = createChart('trendChart', {
+        type: 'line',
+        data: { labels, datasets: [{ label: currentMetric === 'revenue' ? 'Revenue (EGP)' : 'Orders', data: values, tension: 0.4, fill: true }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+function renderPaymentChart(data) {
+    if (paymentChart) paymentChart.destroy();
+    const pm = data.paymentMethods || { Cash: 0, Card: 0, Digital: 0 };
+    paymentChart = createChart('paymentChart', {
+        type: 'doughnut',
+        data: { labels: Object.keys(pm), datasets: [{ data: Object.values(pm), backgroundColor: ['#FF6B6B','#4ECDC4','#45B7D1'] }] },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+}
+
+function renderTopProducts(data) {
+    const products = data.topProducts || [];
+    const max = products[0]?.totalQty || 1;
+    document.getElementById('topProductsList').innerHTML = products.slice(0,8).map((p,i) => `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">${i+1}</div>
+            <div style="flex:1">
+                <div style="font-weight:600;font-size:13px;margin-bottom:4px">${p.productName}</div>
+                <div style="background:var(--bg-secondary);border-radius:4px;height:6px;overflow:hidden">
+                    <div style="width:${(p.totalQty/max*100).toFixed(0)}%;background:var(--primary);height:100%;border-radius:4px;transition:width 0.5s"></div>
+                </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+                <div style="font-weight:700;font-size:13px">${p.totalRevenue?.toFixed(0)} EGP</div>
+                <div style="font-size:11px;color:var(--text-muted)">${p.totalQty} sold</div>
+            </div>
+        </div>`).join('');
+}
+
+function renderCategoryChart(data) {
+    if (categoryChart) categoryChart.destroy();
+    const cats = data.categoryRevenue || [];
+    categoryChart = createChart('categoryChart', {
+        type: 'bar',
+        data: {
+            labels: cats.map(c => c.categoryName),
+            datasets: [{ label: 'Revenue (EGP)', data: cats.map(c => c.revenue), backgroundColor: ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#FF8C00','#20B2AA'] }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+function renderOrderTypes(data) {
+    const types = data.orderTypes || { DineIn: 0, Takeaway: 0, Delivery: 0 };
+    const total = Object.values(types).reduce((a,b)=>a+b,0)||1;
+    const typeConfig = [
+        { key: 'DineIn', label: 'Dine In', icon: 'fa-utensils', color: '#45B7D1' },
+        { key: 'Takeaway', label: 'Takeaway', icon: 'fa-shopping-bag', color: '#FF9800' },
+        { key: 'Delivery', label: 'Delivery', icon: 'fa-motorcycle', color: '#4CAF50' }
+    ];
+    document.getElementById('orderTypeBreakdown').innerHTML = typeConfig.map(t => `
+        <div style="padding:20px;background:var(--bg-secondary);border-radius:12px;text-align:center">
+            <div style="font-size:28px;color:${t.color};margin-bottom:8px"><i class="fas ${t.icon}"></i></div>
+            <div style="font-size:28px;font-weight:800;color:${t.color}">${types[t.key]||0}</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:4px">${t.label}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${((types[t.key]||0)/total*100).toFixed(1)}%</div>
+        </div>`).join('');
+}
+
+function exportReport() {
+    if (!reportData) { Toast.warning('No data to export'); return; }
+    const rows = [['Date','Revenue','Orders']];
+    (reportData.dailySales||[]).forEach(d => rows.push([d.date, d.revenue, d.orders]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `report_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+}
+
+document.addEventListener('DOMContentLoaded', loadReportData);
+</script>
+}

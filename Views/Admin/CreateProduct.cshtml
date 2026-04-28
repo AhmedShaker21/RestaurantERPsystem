@@ -1,0 +1,144 @@
+@model RestaurantERP.Models.Product
+@{
+    ViewBag.PageTitle = "إضافة منتج جديد";
+    var categories = ViewBag.Categories as List<RestaurantERP.Models.Category> ?? new();
+    var isEdit = Model?.Id > 0;
+}
+
+<div style="max-width:700px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <a href="/Admin/Products" class="btn btn-outline btn-sm">← رجوع</a>
+        <h2 style="font-size:20px;font-weight:800">@(isEdit ? "تعديل المنتج" : "إضافة منتج جديد")</h2>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <form method="post" asp-action="@(isEdit ? "EditProduct" : "CreateProduct")">
+                @Html.AntiForgeryToken()
+                @if (isEdit) { <input type="hidden" asp-for="Id"> }
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label" data-t="product-name-ar">اسم المنتج (عربي) *</label>
+                        <input asp-for="NameAr" class="form-control" required placeholder="مثال: فراخ مشوية">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" data-t="product-name">اسم المنتج (انجليزي) *</label>
+                        <input asp-for="Name" class="form-control" required placeholder="e.g. Grilled Chicken">
+                    </div>
+                </div>
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label">الوصف (عربي)</label>
+                        <textarea asp-for="DescriptionAr" class="form-control" rows="3" placeholder="وصف المنتج..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description (English)</label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Product description..."></textarea>
+                    </div>
+                </div>
+
+                <div class="grid grid-2" style="gap:16px">
+                    <div class="form-group">
+                        <label class="form-label" data-t="selling-price">سعر البيع (ج.م) *</label>
+                        <input asp-for="Price" type="number" class="form-control" step="0.01" min="0" required id="priceInput" oninput="calcProfit()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" data-t="cost-price">سعر التكلفة (ج.م)</label>
+                        <input asp-for="CostPrice" type="number" class="form-control" step="0.01" min="0" id="costInput" oninput="calcProfit()">
+                    </div>
+                </div>
+
+                <div class="alert alert-info" id="profitAlert" style="display:none;margin-bottom:16px">
+                    💹 الربح: <strong id="profitVal">0</strong> ج.م | هامش الربح: <strong id="marginVal">0%</strong>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" data-t="category">الفئة *</label>
+                    <select asp-for="CategoryId" class="form-control" required>
+                        <option value="">-- اختر الفئة --</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id">@cat.Icon @cat.NameAr / @cat.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" data-t="barcode">باركود</label>
+                    <input asp-for="Barcode" class="form-control" placeholder="اتركه فارغاً للتوليد التلقائي">
+                </div>
+
+                <div class="grid grid-2" style="gap:16px;margin-bottom:16px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px">
+                        <input asp-for="IsActive" type="checkbox" style="width:16px;height:16px"> 
+                        <span style="font-size:14px;font-weight:600">نشط في النظام</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px">
+                        <input asp-for="IsAvailable" type="checkbox" style="width:16px;height:16px">
+                        <span style="font-size:14px;font-weight:600">متاح للطلب</span>
+                    </label>
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:16px" id="trackWrapper">
+                    <input asp-for="TrackStock" type="checkbox" style="width:16px;height:16px" id="trackStock" onchange="toggleStock()">
+                    <span style="font-size:14px;font-weight:600" data-t="track-stock">تتبع المخزون</span>
+                </label>
+
+                <div id="stockSection" style="display:none">
+                    <div class="grid grid-2" style="gap:16px">
+                        <div class="form-group">
+                            <label class="form-label" data-t="stock-qty">الكمية الحالية</label>
+                            <input asp-for="StockQuantity" type="number" class="form-control" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" data-t="min-stock">حد التنبيه (أقل كمية)</label>
+                            <input asp-for="MinStockAlert" type="number" class="form-control" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <a href="/Admin/Products" class="btn btn-outline" data-t="cancel">إلغاء</a>
+                    <button type="submit" class="btn btn-accent">
+                        <span>@(isEdit ? "💾" : "➕")</span>
+                        <span>@(isEdit ? "حفظ التعديلات" : "إضافة المنتج")</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function calcProfit() {
+    const price = parseFloat(document.getElementById('priceInput').value) || 0;
+    const cost = parseFloat(document.getElementById('costInput').value) || 0;
+    const profit = price - cost;
+    const margin = price > 0 ? (profit / price * 100).toFixed(1) : 0;
+    const alert = document.getElementById('profitAlert');
+    if (price > 0) {
+        alert.style.display = 'flex';
+        document.getElementById('profitVal').textContent = profit.toFixed(2);
+        document.getElementById('marginVal').textContent = margin + '%';
+        alert.className = profit >= 0 ? 'alert alert-success' : 'alert alert-danger';
+    } else {
+        alert.style.display = 'none';
+    }
+}
+
+function toggleStock() {
+    const checked = document.getElementById('trackStock').checked;
+    document.getElementById('stockSection').style.display = checked ? 'block' : 'none';
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    toggleStock();
+    calcProfit();
+});
+</script>
+}

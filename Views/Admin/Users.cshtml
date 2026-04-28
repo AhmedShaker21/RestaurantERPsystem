@@ -1,0 +1,343 @@
+@model IEnumerable<(RestaurantERP.Models.ApplicationUser User, IList<string> Roles)>
+
+@{
+    ViewData["Title"] = "Users";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var roles = new[] { "Admin", "Manager", "Cashier", "Kitchen", "Waiter" };
+    var roleIcons = new[] { "fa-shield-alt", "fa-user-tie", "fa-cash-register", "fa-utensils", "fa-concierge-bell" };
+    var roleColors = new[] { "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7" };
+
+    var roleColorMap = new Dictionary<string, string>
+    {
+        { "Admin", "#FF6B6B" },
+        { "Manager", "#4ECDC4" },
+        { "Cashier", "#45B7D1" },
+        { "Kitchen", "#96CEB4" },
+        { "Waiter", "#FFEAA7" }
+    };
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="users">Users</h1>
+        <p class="page-subtitle">@Model.Count() <span data-t="totalUsers">total users</span></p>
+    </div>
+
+    <button class="btn btn-primary" onclick="Modal.open('addUserModal')">
+        <i class="fas fa-user-plus me-2"></i>
+        <span data-t="addUser">Add User</span>
+    </button>
+</div>
+
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px">
+    @for (int i = 0; i < roles.Length; i++)
+    {
+        var role = roles[i];
+        var count = Model.Count(m => m.Roles.Contains(role));
+
+        <div class="stat-card" style="border-left:4px solid @roleColors[i]">
+            <div class="stat-icon" style="background:@(roleColors[i])22;color:@roleColors[i]">
+                <i class="fas @roleIcons[i]"></i>
+            </div>
+            <div class="stat-value">@count</div>
+            <div class="stat-label">@role</div>
+        </div>
+    }
+</div>
+
+<div class="card">
+    <div class="card-header" style="display:flex;gap:12px;flex-wrap:wrap">
+        <input type="text"
+               id="userSearchInput"
+               class="form-control"
+               style="max-width:250px"
+               placeholder="Search users..."
+               oninput="filterUsers(this.value)" />
+
+        <select class="form-control" style="max-width:180px" onchange="filterByRole(this.value)">
+            <option value="">All Roles</option>
+            @foreach (var r in roles)
+            {
+                <option value="@r">@r</option>
+            }
+        </select>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table" id="usersTable">
+            <thead>
+                <tr>
+                    <th data-t="user">User</th>
+                    <th data-t="email">Email</th>
+                    <th data-t="role">Role</th>
+                    <th data-t="status">Status</th>
+                    <th data-t="actions">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    var appUser = item.User;
+                    var userRoles = item.Roles ?? new List<string>();
+                    var mainRole = userRoles.FirstOrDefault() ?? "None";
+                    var isActive = appUser.IsActive;
+
+                    var displayName = !string.IsNullOrWhiteSpace(appUser.FullName)
+                        ? appUser.FullName
+                        : appUser.UserName ?? appUser.Email ?? "User";
+
+                    var firstLetter = !string.IsNullOrWhiteSpace(displayName)
+                        ? displayName.Substring(0, 1).ToUpper()
+                        : "?";
+
+                    var color = roleColorMap.ContainsKey(mainRole)
+                        ? roleColorMap[mainRole]
+                        : "#aaa";
+
+                    <tr data-role="@mainRole">
+                        <td>
+                            <div class="d-flex align-items-center gap-3">
+                                <div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0">
+                                    @firstLetter
+                                </div>
+
+                                <div>
+                                    <div style="font-weight:600">@displayName</div>
+                                    <div style="font-size:12px;color:var(--text-muted)" dir="rtl">
+                                        @appUser.FullNameAr
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>@appUser.Email</td>
+
+                        <td>
+                            <span class="badge" style="background:@(color)22;color:@color;border:1px solid @color">
+                                @mainRole
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="badge @(isActive ? "badge-success" : "badge-danger")">
+                                @(isActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline"
+                                        onclick="toggleUser('@item.User.Id', @isActive.ToString().ToLower())"
+                                        title="@(isActive ? "Deactivate" : "Activate")">
+                                    <i class="fas @(isActive ? "fa-user-slash" : "fa-user-check")"></i>
+                                </button>
+
+                                <button class="btn btn-sm btn-outline"
+                                        onclick="resetPassword('@item.User.Id', '@displayName')"
+                                        title="Reset Password">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="addUserModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <h3 class="modal-title" data-t="addUser">Add New User</h3>
+            <button class="modal-close" onclick="Modal.close('addUserModal')">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group">
+                    <label class="form-label" data-t="fullNameEn">Full Name (EN)</label>
+                    <input type="text" id="newFullName" class="form-control" placeholder="John Smith">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" data-t="fullNameAr">Full Name (AR)</label>
+                    <input type="text" id="newFullNameAr" class="form-control" dir="rtl" placeholder="محمد علي">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" data-t="email">Email</label>
+                <input type="email" id="newEmail" class="form-control" placeholder="user@restaurant.com">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" data-t="password">Password</label>
+                <input type="password" id="newPassword" class="form-control" placeholder="Min 6 characters">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" data-t="role">Role</label>
+                <select id="newRole" class="form-control">
+                    @foreach (var r in roles)
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="Modal.close('addUserModal')" data-t="cancel">Cancel</button>
+
+            <button class="btn btn-primary" onclick="createUser()">
+                <i class="fas fa-user-plus me-2"></i>
+                <span data-t="create">Create User</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="resetPwdModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <h3 class="modal-title" data-t="resetPassword">Reset Password</h3>
+            <button class="modal-close" onclick="Modal.close('resetPwdModal')">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <p id="resetUserName" style="margin-bottom:16px;color:var(--text-muted)"></p>
+
+            <div class="form-group">
+                <label class="form-label" data-t="newPassword">New Password</label>
+                <input type="password" id="resetNewPwd" class="form-control" placeholder="Min 6 characters">
+            </div>
+
+            <input type="hidden" id="resetUserId">
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="Modal.close('resetPwdModal')" data-t="cancel">Cancel</button>
+
+            <button class="btn btn-primary" onclick="submitResetPassword()">
+                <i class="fas fa-key me-2"></i>
+                <span data-t="resetPassword">Reset Password</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let filterRoleVal = '';
+
+        function filterUsers(val) {
+            const search = (val || '').toLowerCase();
+
+            document.querySelectorAll('#usersTable tbody tr').forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const role = row.dataset.role;
+
+                const matchesSearch = !search || text.includes(search);
+                const matchesRole = !filterRoleVal || role === filterRoleVal;
+
+                row.style.display = matchesSearch && matchesRole ? '' : 'none';
+            });
+        }
+
+        function filterByRole(role) {
+            filterRoleVal = role;
+            filterUsers(document.getElementById('userSearchInput')?.value || '');
+        }
+
+        async function toggleUser(id, currentlyActive) {
+            const action = currentlyActive ? 'deactivate' : 'activate';
+
+            if (!confirm(`Are you sure you want to ${action} this user?`)) {
+                return;
+            }
+
+            try {
+                const res = await API.post('/Admin/ToggleUser', {
+                    userId: id
+                });
+
+                if (res.success) {
+                    Toast.success(res.isActive ? 'User activated successfully' : 'User deactivated successfully');
+                    setTimeout(() => location.reload(), 700);
+                } else {
+                    Toast.error(res.message || 'Failed to update user');
+                }
+            } catch (e) {
+                console.error(e);
+                Toast.error('Error updating user');
+            }
+        }
+
+        function resetPassword(id, name) {
+            document.getElementById('resetUserId').value = id;
+            document.getElementById('resetUserName').textContent = `Resetting password for: ${name}`;
+            document.getElementById('resetNewPwd').value = '';
+            Modal.open('resetPwdModal');
+        }
+
+        async function submitResetPassword() {
+            const id = document.getElementById('resetUserId').value;
+            const pwd = document.getElementById('resetNewPwd').value;
+
+            if (!pwd || pwd.length < 6) {
+                Toast.warning('Password must be at least 6 characters');
+                return;
+            }
+
+            try {
+                const res = await API.post('/Admin/ResetPassword', {
+                    userId: id,
+                    newPassword: pwd
+                });
+
+                if (res.success) {
+                    Toast.success('Password reset successfully');
+                    Modal.close('resetPwdModal');
+                } else {
+                    Toast.error(res.message || 'Failed');
+                }
+            } catch (e) {
+                console.error(e);
+                Toast.error('Error resetting password');
+            }
+        }
+
+        async function createUser() {
+            const payload = {
+                fullName: document.getElementById('newFullName').value,
+                fullNameAr: document.getElementById('newFullNameAr').value,
+                email: document.getElementById('newEmail').value,
+                password: document.getElementById('newPassword').value,
+                role: document.getElementById('newRole').value
+            };
+
+            if (!payload.email || !payload.password) {
+                Toast.warning('Email and password are required');
+                return;
+            }
+
+            try {
+                const res = await API.post('/Admin/CreateUser', payload);
+
+                if (res.success) {
+                    Toast.success('User created successfully');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    const msg = res.errors ? res.errors.join('<br>') : (res.message || 'Failed to create user');
+                    Toast.error(msg);
+                }
+            } catch (e) {
+                console.error(e);
+                Toast.error('Error creating user');
+            }
+        }
+    </script>
+}

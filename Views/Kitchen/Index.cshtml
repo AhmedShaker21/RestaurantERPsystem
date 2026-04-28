@@ -1,0 +1,161 @@
+@{
+    ViewData["Title"] = "Kitchen Display";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" data-t="kitchenDisplay">Kitchen Display</h1>
+        <p class="page-subtitle" id="lastRefresh">Refreshing automatically...</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge badge-success" id="liveIndicator">
+            <i class="fas fa-circle" style="font-size:8px;animation:pulse 2s infinite"></i>
+            <span data-t="live" style="margin-left:4px">Live</span>
+        </span>
+        <button class="btn btn-outline" onclick="loadOrders()">
+            <i class="fas fa-sync me-2"></i><span data-t="refresh">Refresh</span>
+        </button>
+    </div>
+</div>
+
+<!-- Status Filter Tabs -->
+<div class="d-flex gap-2" style="margin-bottom:24px;flex-wrap:wrap">
+    @{
+        var tabs = new[] {
+            ("all","All","fa-th","var(--primary)"),
+            ("Pending","New","fa-clock","#FF6B6B"),
+            ("Preparing","Preparing","fa-fire","#FF9800"),
+            ("Ready","Ready","fa-check","#4CAF50")
+        };
+    }
+    @foreach (var (val, label, icon, color) in tabs)
+    {
+        <button class="btn @(val=="all"?"btn-primary":"btn-outline") kitchen-tab" 
+                data-filter="@val" onclick="setFilter('@val', this)" style="border-color:@color;@(val!="all"?$"color:{color}":"")">
+            <i class="fas @icon me-2"></i>
+            <span>@label</span>
+            <span class="badge" id="count-@val" style="background:@color;margin-left:6px;font-size:10px">0</span>
+        </button>
+    }
+</div>
+
+<div id="ordersContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;min-height:300px">
+    <div style="grid-column:1/-1;text-align:center;padding:80px;color:var(--text-muted)">
+        <i class="fas fa-spinner fa-spin fa-3x" style="margin-bottom:16px"></i>
+        <div data-t="loadingOrders">Loading orders...</div>
+    </div>
+</div>
+
+<style>
+@@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+.kitchen-card { animation: slideIn 0.3s ease; }
+@@keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.timer-urgent { color: #FF6B6B !important; animation: pulse 1s infinite; }
+</style>
+
+@section Scripts {
+<script>
+let allOrders = [];
+let currentFilter = 'all';
+let refreshTimer;
+
+async function loadOrders() {
+    try {
+        const data = await API.get('/Kitchen/GetPendingOrders');
+        allOrders = data.orders || [];
+        renderOrders();
+        updateCounts();
+        document.getElementById('lastRefresh').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    } catch(e) {
+        console.error('Failed to load orders:', e);
+    }
+}
+
+function updateCounts() {
+    document.getElementById('count-all').textContent = allOrders.length;
+    document.getElementById('count-Pending').textContent = allOrders.filter(o=>o.status==='Pending').length;
+    document.getElementById('count-Preparing').textContent = allOrders.filter(o=>o.status==='Preparing').length;
+    document.getElementById('count-Ready').textContent = allOrders.filter(o=>o.status==='Ready').length;
+}
+
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.kitchen-tab').forEach(t => {
+        t.className = t.className.replace('btn-primary','btn-outline');
+    });
+    btn.className = btn.className.replace('btn-outline','btn-primary');
+    renderOrders();
+}
+
+function renderOrders() {
+    const filtered = currentFilter === 'all' ? allOrders : allOrders.filter(o => o.status === currentFilter);
+    const container = document.getElementById('ordersContainer');
+    if (filtered.length === 0) {
+        container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:80px;color:var(--text-muted)">
+            <i class="fas fa-check-circle fa-3x" style="color:#4CAF50;margin-bottom:16px;display:block"></i>
+            <div style="font-size:18px;font-weight:600">All clear!</div>
+            <div style="font-size:14px;margin-top:8px">No pending orders</div>
+        </div>`;
+        return;
+    }
+    container.innerHTML = filtered.map(order => {
+        const elapsed = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
+        const isUrgent = elapsed >= 15;
+        const statusConfig = {
+            'Pending': { color: '#FF6B6B', icon: 'fa-clock', label: 'New Order', next: 'Preparing', nextLabel: 'Start Preparing', nextIcon: 'fa-fire' },
+            'Preparing': { color: '#FF9800', icon: 'fa-fire', label: 'Preparing', next: 'Ready', nextLabel: 'Mark Ready', nextIcon: 'fa-check' },
+            'Ready': { color: '#4CAF50', icon: 'fa-check-circle', label: 'Ready!', next: 'Completed', nextLabel: 'Complete', nextIcon: 'fa-flag-checkered' }
+        };
+        const cfg = statusConfig[order.status] || { color: '#aaa', icon: 'fa-circle', label: order.status, next: null };
+        const itemsHtml = (order.items||[]).map(item => `
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);align-items:center">
+                <div>
+                    <div style="font-weight:600">${item.productName}</div>
+                    ${item.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">⚠ ${item.notes}</div>` : ''}
+                </div>
+                <div style="background:${cfg.color}22;color:${cfg.color};font-weight:700;padding:4px 10px;border-radius:20px;font-size:14px">×${item.quantity}</div>
+            </div>`).join('');
+        return `
+            <div class="card kitchen-card" style="border-top:4px solid ${cfg.color}">
+                <div style="padding:16px">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                        <div>
+                            <div style="font-size:22px;font-weight:800;color:${cfg.color}">#${order.orderNumber}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">${order.orderType}${order.tableNumber ? ` · Table ${order.tableNumber}` : ''}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div class="${isUrgent?'timer-urgent':''}" style="font-weight:700;font-size:18px;color:${isUrgent?'#FF6B6B':'var(--text-primary)'}">
+                                <i class="fas fa-clock me-1"></i>${elapsed}m
+                            </div>
+                            <span style="background:${cfg.color}22;color:${cfg.color};font-size:11px;padding:2px 8px;border-radius:20px">
+                                <i class="fas ${cfg.icon} me-1"></i>${cfg.label}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:12px">${itemsHtml}</div>
+                    ${cfg.next ? `<button class="btn btn-primary w-100" style="background:${cfg.color};border-color:${cfg.color}" onclick="updateStatus(${order.id}, '${cfg.next}')">
+                        <i class="fas ${cfg.nextIcon} me-2"></i>${cfg.nextLabel}
+                    </button>` : ''}
+                </div>
+            </div>`;
+    }).join('');
+}
+
+async function updateStatus(orderId, newStatus) {
+    try {
+        const res = await API.post('/Kitchen/UpdateStatus', { orderId, status: newStatus });
+        if (res.success) {
+            if (newStatus === 'Completed') Toast.success('Order completed!');
+            await loadOrders();
+        } else Toast.error(res.message || 'Failed to update status');
+    } catch(e) { Toast.error('Error updating order status'); }
+}
+
+// Auto-refresh every 30 seconds
+document.addEventListener('DOMContentLoaded', () => {
+    loadOrders();
+    refreshTimer = setInterval(loadOrders, 30000);
+});
+</script>
+}
