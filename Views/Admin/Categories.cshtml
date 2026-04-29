@@ -20,7 +20,7 @@
         <div class="stat-card" style="cursor:pointer;border-left:4px solid @cat.ColorHex" onclick="editCategory(@cat.Id)">
             <div class="stat-card-header">
                 <div class="stat-icon" style="background:@cat.ColorHex;color:@cat.ColorHex">
-                    <i class="fas @cat.Icon"></i>
+                    @(cat.Icon != null && cat.Icon.StartsWith("fa") ? (Microsoft.AspNetCore.Html.IHtmlContent)(new Microsoft.AspNetCore.Html.HtmlString($"<i class=\"fas {cat.Icon}\"></i>")) : new Microsoft.AspNetCore.Html.HtmlString($"<span style=\"font-size:22px\">{cat.Icon}</span>"))
                 </div>
                 <div>
                     <span class="badge @(cat.IsActive ? "badge-success" : "badge-danger")" style="font-size:10px">
@@ -60,7 +60,7 @@
                     <tr>
                         <td>
                             <div style="width:40px;height:40px;border-radius:10px;background:@cat.ColorHex;display:flex;align-items:center;justify-content:center;color:@cat.ColorHex;font-size:18px">
-                                <i class="fas @cat.Icon"></i>
+                                @(cat.Icon != null && cat.Icon.StartsWith("fa") ? (Microsoft.AspNetCore.Html.IHtmlContent)(new Microsoft.AspNetCore.Html.HtmlString($"<i class=\"fas {cat.Icon}\"></i>")) : new Microsoft.AspNetCore.Html.HtmlString($"<span style=\"font-size:22px\">{cat.Icon}</span>"))
                             </div>
                         </td>
                         <td><strong>@cat.Name</strong></td>
@@ -112,10 +112,10 @@
                     </div>
                 </div>
                 <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
-                    @foreach(var icon in new[]{"fa-coffee","fa-hamburger","fa-pizza-slice","fa-ice-cream","fa-bread-slice","fa-wine-glass","fa-utensils","fa-cookie","fa-fish","fa-drumstick-bite","fa-carrot","fa-apple-alt"})
+                    @foreach(var icon in new[]{"☕","🧊","🍽️","🥪","🥗","🍰","🥤","🥣","🍔","🍕","🍜","🍗","🥩","🍳","🥐","🧆","🍱","🍣"})
                     {
-                        <button type="button" class="btn btn-sm btn-outline" onclick="selectIcon('@icon')" style="width:36px;height:36px;padding:0">
-                            <i class="fas @icon"></i>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="selectIcon('@icon')" style="width:36px;height:36px;padding:0;font-size:18px">
+                            @icon
                         </button>
                     }
                 </div>
@@ -133,10 +133,23 @@
             </div>
             <div class="form-group">
                 <label class="form-label" data-t="status">Status</label>
-                <div class="d-flex gap-3">
+                <div style="display:flex;flex-direction:column;gap:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                         <input type="checkbox" id="catActive" checked style="width:18px;height:18px">
                         <span data-t="active">Active</span>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;background:var(--bg-secondary);border-radius:10px;border:2px solid var(--border-color)" id="skipKitchenLabel">
+                        <input type="checkbox" id="catSkipKitchen" style="width:18px;height:18px;margin-top:2px;flex-shrink:0">
+                        <div>
+                            <div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px">
+                                ⚡ Skip Kitchen Queue
+                                <span style="background:#22c55e22;color:#22c55e;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px">NO KITCHEN</span>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5">
+                                Items in this category go directly to <strong>Ready</strong> without passing through the kitchen.<br>
+                                Use for: chips, drinks, packaged snacks, bottled items.
+                            </div>
+                        </div>
                     </label>
                 </div>
             </div>
@@ -153,7 +166,7 @@
 @section Scripts {
 <script>
 const categoriesData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Select(c => new {
-    id = c.Id, name = c.Name, nameAr = c.NameAr, icon = c.Icon, colorHex = c.ColorHex, isActive = c.IsActive
+    id = c.Id, name = c.Name, nameAr = c.NameAr, icon = c.Icon, colorHex = c.ColorHex, isActive = c.IsActive, skipKitchen = c.SkipKitchen
 })));
 
 function openAddModal() {
@@ -177,6 +190,7 @@ function editCategory(id) {
     document.getElementById('catNameAr').value = cat.nameAr;
     document.getElementById('catIcon').value = cat.icon;
     document.getElementById('catActive').checked = cat.isActive;
+    document.getElementById('catSkipKitchen').checked = cat.skipKitchen || false;
     selectColor(cat.colorHex);
     updateIconPreview();
     Modal.open('categoryModal');
@@ -185,7 +199,11 @@ function editCategory(id) {
 function updateIconPreview() {
     const icon = document.getElementById('catIcon').value.trim();
     const preview = document.getElementById('iconPreview');
-    preview.innerHTML = `<i class="fas ${icon || 'fa-star'}"></i>`;
+    if (icon.startsWith('fa')) {
+        preview.innerHTML = `<i class="fas ${icon}"></i>`;
+    } else {
+        preview.innerHTML = `<span style="font-size:28px">${icon || '🍽️'}</span>`;
+    }
 }
 
 function selectIcon(icon) {
@@ -211,8 +229,9 @@ async function saveCategory() {
         name: document.getElementById('catName').value,
         nameAr: document.getElementById('catNameAr').value,
         icon: document.getElementById('catIcon').value,
-        colorHex: document.getElementById('catColor').value,
-        isActive: document.getElementById('catActive').checked
+        colorHex:    document.getElementById('catColor').value,
+        isActive:    document.getElementById('catActive').checked,
+        skipKitchen: document.getElementById('catSkipKitchen').checked
     };
     try {
         const res = await API.post('/Admin/SaveCategory', payload);

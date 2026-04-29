@@ -113,55 +113,55 @@
 </div>
 
 @section Scripts {
-<script>
-function filterOrders(search) {
-    const s = (search || document.querySelector('input[type=text]').value).toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
-        const show = (!s || row.textContent.toLowerCase().includes(s)) &&
-                     (!status || row.dataset.status === status);
-        row.style.display = show ? '' : 'none';
-    });
-}
-
-async function reprintOrder(orderId) {
-    try {
-        const data = await API.get(`/Waiter/GetOrderForPrint?orderId=${orderId}`);
-        if (data.success) {
-            const o = data.order;
-            const itemsHtml = (o.items||[]).map(i =>
-                `<tr><td>${i.productName}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${(i.unitPrice*i.quantity).toFixed(2)}</td></tr>`
-            ).join('');
-            const html = `
-                <div style="font-family:'Cairo',sans-serif;max-width:300px;margin:0 auto;padding:10px">
-                    <div style="text-align:center;border-bottom:2px dashed #333;padding-bottom:10px;margin-bottom:10px">
-                        <h2 style="margin:0;font-size:18px">نادي مصنع الطائرات</h2>
-                        <p style="margin:4px 0;font-size:12px">Aircraft Factory Club</p>
-                    </div>
-                    <div style="font-size:12px;margin-bottom:10px">
-                        <div>Order: <strong>${o.orderNumber}</strong></div>
-                        ${o.tableNumber ? `<div>Table: ${o.tableNumber}</div>` : ''}
-                        <div>Date: ${new Date(o.createdAt).toLocaleString('ar-EG')}</div>
-                        <div>Waiter: ${o.waiterName || '-'}</div>
-                    </div>
-                    <table style="width:100%;font-size:12px;border-top:1px dashed #333;border-bottom:1px dashed #333">
-                        <thead><tr><th style="text-align:left;padding:4px">Item</th><th>Qty</th><th style="text-align:right;padding:4px">EGP</th></tr></thead>
-                        <tbody>${itemsHtml}</tbody>
-                    </table>
-                    <div style="font-size:12px;margin-top:10px">
-                        <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>${o.subTotal?.toFixed(2)}</span></div>
-                        <div style="display:flex;justify-content:space-between"><span>Tax:</span><span>${o.taxAmount?.toFixed(2)}</span></div>
-                        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:1px dashed #333;margin-top:6px;padding-top:6px">
-                            <span>TOTAL:</span><span>${o.total?.toFixed(2)} EGP</span>
-                        </div>
-                    </div>
-                    <div style="text-align:center;margin-top:16px;font-size:11px;border-top:1px dashed #333;padding-top:10px">
-                        <p style="margin:0">شكراً لزيارتكم — Thank you!</p>
-                    </div>
-                </div>`;
-            printInvoice(html);
+    <script>
+        function filterOrders(search) {
+            const s = (search || document.querySelector('input[type=text]').value).toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
+                const show = (!s || row.textContent.toLowerCase().includes(s)) &&
+                             (!status || row.dataset.status === status);
+                row.style.display = show ? '' : 'none';
+            });
         }
-    } catch(e) { Toast.error('Failed to load order'); }
-}
-</script>
+
+        async function reprintOrder(orderId) {
+            try {
+                const data = await API.get(`/Waiter/GetOrderForPrint?orderId=${orderId}`);
+                if (data.success) {
+                    const o = data;
+                    const itemsHtml = (o.items||[]).map(i =>
+                        `<tr><td>${i.productName}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${(i.unitPrice*i.quantity).toFixed(2)}</td></tr>`
+                    ).join('');
+                    const html = `
+                        <div style="font-family:'Cairo',sans-serif;max-width:300px;margin:0 auto;padding:10px">
+                            <div style="text-align:center;border-bottom:2px dashed #333;padding-bottom:10px;margin-bottom:10px">
+                                <h2 style="margin:0;font-size:18px">نادي مصنع الطائرات</h2>
+                                <p style="margin:4px 0;font-size:12px">Aircraft Factory Club</p>
+                            </div>
+                            <div style="font-size:12px;margin-bottom:10px">
+                                <div>Order: <strong>${o.orderNumber}</strong></div>
+                                ${o.tableNumber ? `<div>Table: ${o.tableNumber}</div>` : ''}
+                                <div>Date: ${new Date(o.createdAt).toLocaleString('ar-EG')}</div>
+                                <div>Waiter: ${o.waiterName || '-'}</div>
+                            </div>
+                            <table style="width:100%;font-size:12px;border-top:1px dashed #333;border-bottom:1px dashed #333">
+                                <thead><tr><th style="text-align:left;padding:4px">Item</th><th>Qty</th><th style="text-align:right;padding:4px">EGP</th></tr></thead>
+                                <tbody>${itemsHtml}</tbody>
+                            </table>
+                            <div style="font-size:12px;margin-top:10px">
+                                <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>${o.subTotal?.toFixed(2)}</span></div>
+                                <div style="display:flex;justify-content:space-between"><span>Tax:</span><span>${o.taxAmount?.toFixed(2)}</span></div>
+                                <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:1px dashed #333;margin-top:6px;padding-top:6px">
+                                    <span>TOTAL:</span><span>${o.total?.toFixed(2)} EGP</span>
+                                </div>
+                            </div>
+                            <div style="text-align:center;margin-top:16px;font-size:11px;border-top:1px dashed #333;padding-top:10px">
+                                <p style="margin:0">شكراً لزيارتكم — Thank you!</p>
+                            </div>
+                        </div>`;
+                    printInvoice(html);
+                }
+            } catch(e) { Toast.error('Failed to load order'); }
+        }
+    </script>
 }

@@ -170,6 +170,9 @@ namespace RestaurantERP.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("DefaultBranchId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -226,6 +229,8 @@ namespace RestaurantERP.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DefaultBranchId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -235,6 +240,57 @@ namespace RestaurantERP.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.Branch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ColorHex")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMainBranch")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ManagerId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
+
+                    b.ToTable("Branches");
                 });
 
             modelBuilder.Entity("RestaurantERP.Models.Category", b =>
@@ -269,6 +325,9 @@ namespace RestaurantERP.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("SkipKitchen")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.ToTable("Categories");
@@ -281,6 +340,9 @@ namespace RestaurantERP.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Capacity")
                         .HasColumnType("int");
@@ -297,6 +359,8 @@ namespace RestaurantERP.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BranchId");
+
                     b.ToTable("DiningTables");
                 });
 
@@ -311,6 +375,9 @@ namespace RestaurantERP.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -324,14 +391,14 @@ namespace RestaurantERP.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PaymentMethod")
-                        .HasColumnType("int");
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RecordedById")
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<int?>("ShiftId")
-                        .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -339,11 +406,11 @@ namespace RestaurantERP.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BranchId");
+
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("RecordedById");
-
-                    b.HasIndex("ShiftId");
 
                     b.ToTable("Expenses");
                 });
@@ -395,6 +462,9 @@ namespace RestaurantERP.Migrations
 
                     b.Property<decimal>("AmountPaid")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
 
                     b.Property<string>("CashierId")
                         .HasColumnType("nvarchar(450)");
@@ -456,6 +526,8 @@ namespace RestaurantERP.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BranchId");
+
                     b.HasIndex("CashierId");
 
                     b.HasIndex("ShiftId");
@@ -482,8 +554,19 @@ namespace RestaurantERP.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProductNameAr")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<bool>("SkipKitchen")
+                        .HasColumnType("bit");
 
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("decimal(18,2)");
@@ -566,6 +649,105 @@ namespace RestaurantERP.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("RestaurantERP.Models.Refund", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OriginalOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProcessedById")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RefundMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RefundNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RefundTax")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RefundTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RefundType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("OriginalOrderId");
+
+                    b.HasIndex("ProcessedById");
+
+                    b.ToTable("Refunds");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.RefundItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("OrderItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProductNameAr")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RefundId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderItemId");
+
+                    b.HasIndex("RefundId");
+
+                    b.ToTable("RefundItems");
+                });
+
             modelBuilder.Entity("RestaurantERP.Models.Shift", b =>
                 {
                     b.Property<int>("Id")
@@ -573,6 +755,9 @@ namespace RestaurantERP.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("ClosingCash")
                         .HasColumnType("decimal(18,2)");
@@ -592,6 +777,9 @@ namespace RestaurantERP.Migrations
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("TotalOrders")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("TotalSales")
                         .HasColumnType("decimal(18,2)");
 
@@ -600,6 +788,8 @@ namespace RestaurantERP.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
 
                     b.HasIndex("UserId");
 
@@ -614,6 +804,9 @@ namespace RestaurantERP.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("BranchId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -624,7 +817,36 @@ namespace RestaurantERP.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BranchId");
+
                     b.ToTable("SystemSettings");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.UserBranch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserBranches");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -678,8 +900,45 @@ namespace RestaurantERP.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RestaurantERP.Models.ApplicationUser", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.Branch", "DefaultBranch")
+                        .WithMany()
+                        .HasForeignKey("DefaultBranchId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("DefaultBranch");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.Branch", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.ApplicationUser", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.DiningTable", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany("Tables")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+                });
+
             modelBuilder.Entity("RestaurantERP.Models.Expense", b =>
                 {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany("Expenses")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RestaurantERP.Models.ApplicationUser", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
@@ -689,16 +948,11 @@ namespace RestaurantERP.Migrations
                         .WithMany()
                         .HasForeignKey("RecordedById");
 
-                    b.HasOne("RestaurantERP.Models.Shift", "Shift")
-                        .WithMany("Expenses")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                    b.Navigation("Branch");
 
                     b.Navigation("CreatedBy");
 
                     b.Navigation("RecordedBy");
-
-                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("RestaurantERP.Models.InventoryLog", b =>
@@ -714,24 +968,29 @@ namespace RestaurantERP.Migrations
 
             modelBuilder.Entity("RestaurantERP.Models.Order", b =>
                 {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany("Orders")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RestaurantERP.Models.ApplicationUser", "Cashier")
                         .WithMany()
                         .HasForeignKey("CashierId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("RestaurantERP.Models.Shift", "Shift")
+                    b.HasOne("RestaurantERP.Models.Shift", null)
                         .WithMany("Orders")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .HasForeignKey("ShiftId");
 
                     b.HasOne("RestaurantERP.Models.DiningTable", "Table")
                         .WithMany("Orders")
                         .HasForeignKey("TableId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Cashier");
+                    b.Navigation("Branch");
 
-                    b.Navigation("Shift");
+                    b.Navigation("Cashier");
 
                     b.Navigation("Table");
                 });
@@ -766,15 +1025,115 @@ namespace RestaurantERP.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("RestaurantERP.Models.Refund", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantERP.Models.Order", "OriginalOrder")
+                        .WithMany()
+                        .HasForeignKey("OriginalOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantERP.Models.ApplicationUser", "ProcessedBy")
+                        .WithMany()
+                        .HasForeignKey("ProcessedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("OriginalOrder");
+
+                    b.Navigation("ProcessedBy");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.RefundItem", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.OrderItem", "OrderItem")
+                        .WithMany()
+                        .HasForeignKey("OrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantERP.Models.Refund", "Refund")
+                        .WithMany("Items")
+                        .HasForeignKey("RefundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderItem");
+
+                    b.Navigation("Refund");
+                });
+
             modelBuilder.Entity("RestaurantERP.Models.Shift", b =>
                 {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany("Shifts")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RestaurantERP.Models.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Branch");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.SystemSettings", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Branch");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.UserBranch", b =>
+                {
+                    b.HasOne("RestaurantERP.Models.Branch", "Branch")
+                        .WithMany("UserBranches")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantERP.Models.ApplicationUser", "User")
+                        .WithMany("UserBranches")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.ApplicationUser", b =>
+                {
+                    b.Navigation("UserBranches");
+                });
+
+            modelBuilder.Entity("RestaurantERP.Models.Branch", b =>
+                {
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("Shifts");
+
+                    b.Navigation("Tables");
+
+                    b.Navigation("UserBranches");
                 });
 
             modelBuilder.Entity("RestaurantERP.Models.Category", b =>
@@ -797,10 +1156,13 @@ namespace RestaurantERP.Migrations
                     b.Navigation("OrderItems");
                 });
 
+            modelBuilder.Entity("RestaurantERP.Models.Refund", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("RestaurantERP.Models.Shift", b =>
                 {
-                    b.Navigation("Expenses");
-
                     b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618

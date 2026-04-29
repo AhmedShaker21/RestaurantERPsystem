@@ -87,19 +87,83 @@ namespace RestaurantERP.Data
                 await userManager.AddToRoleAsync(kitchen, "Kitchen");
             }
 
-            // Seed Categories
+            // ── Seed Branches ─────────────────────────────────────
+            if (!context.Branches.Any())
+            {
+                var managerUser = await userManager.FindByEmailAsync("manager@restaurant.com");
+
+                var branches = new List<Branch>
+                {
+                    new() {
+                        Name = "Main Branch", NameAr = "الفرع بجانب البوابه",
+                        Address = "Cairo, Egypt", Phone = "02-12345678",
+                        Email = "main@restaurant.com",
+                        ManagerId = managerUser?.Id,
+                        IsActive = true, IsMainBranch = true,
+                        ColorHex = "#2563a8", Icon = "🏢"
+                    },
+                    new() {
+                        Name = "Branch 2", NameAr = "فرع قاعة الافراح",
+                        Address = "Cairo", Phone = "02-22345678",
+                        Email = "Branch02@restaurant.com",
+                        IsActive = true, IsMainBranch = false,
+                        ColorHex = "#22c55e", Icon = "🏪"
+                    },
+                    new() {
+                        Name = "Branch 3", NameAr = "فرع اخر النادي",
+                        Address = "Cairo", Phone = "02-32345678",
+                        Email = "Branch03@restaurant.com",
+                        IsActive = true, IsMainBranch = false,
+                        ColorHex = "#f59e0b", Icon = "🏬"
+                    }
+                };
+                context.Branches.AddRange(branches);
+                await context.SaveChangesAsync();
+
+                // Assign all users to main branch, some to branch 2
+                var mainBranchId = branches[0].Id;
+                var branch2Id = branches[1].Id;
+
+                var allUsers = userManager.Users.ToList();
+                foreach (var user in allUsers)
+                {
+                    context.UserBranches.Add(new UserBranch
+                    {
+                        UserId = user.Id,
+                        BranchId = mainBranchId,
+                        IsPrimary = true
+                    });
+                    // Also assign cashier to branch 2
+                    var userRoles = await userManager.GetRolesAsync(user);
+                    if (roles.Contains("Cashier") || roles.Contains("Manager"))
+                    {
+                        context.UserBranches.Add(new UserBranch
+                        {
+                            UserId = user.Id,
+                            BranchId = branch2Id,
+                            IsPrimary = false
+                        });
+                    }
+                    // Set default branch
+                    user.DefaultBranchId = mainBranchId;
+                    await userManager.UpdateAsync(user);
+                }
+                await context.SaveChangesAsync();
+            }
+
+            // ── Seed Categories ───────────────────────────────────
             if (!context.Categories.Any())
             {
                 var categories = new List<Category>
                 {
-                    new() { Name = "Hot Drinks", NameAr = "مشروبات ساخنة", Icon = "☕", ColorHex = "#8B4513" },
+                    new() { Name = "Hot Drinks",  NameAr = "مشروبات ساخنة", Icon = "☕", ColorHex = "#8B4513" },
                     new() { Name = "Cold Drinks", NameAr = "مشروبات باردة", Icon = "🧊", ColorHex = "#00BFFF" },
-                    new() { Name = "Main Dishes", NameAr = "أطباق رئيسية", Icon = "🍽️", ColorHex = "#FF6B35" },
-                    new() { Name = "Sandwiches", NameAr = "سندوتشات", Icon = "🥪", ColorHex = "#FFD700" },
-                    new() { Name = "Salads", NameAr = "سلطات", Icon = "🥗", ColorHex = "#32CD32" },
-                    new() { Name = "Desserts", NameAr = "حلويات", Icon = "🍰", ColorHex = "#FF69B4" },
-                    new() { Name = "Juices", NameAr = "عصائر", Icon = "🥤", ColorHex = "#FFA500" },
-                    new() { Name = "Soups", NameAr = "شوربات", Icon = "🥣", ColorHex = "#DC143C" },
+                    new() { Name = "Main Dishes", NameAr = "أطباق رئيسية",  Icon = "🍽️", ColorHex = "#FF6B35" },
+                    new() { Name = "Sandwiches",  NameAr = "سندوتشات",      Icon = "🥪", ColorHex = "#FFD700" },
+                    new() { Name = "Salads",      NameAr = "سلطات",          Icon = "🥗", ColorHex = "#32CD32" },
+                    new() { Name = "Desserts",    NameAr = "حلويات",         Icon = "🍰", ColorHex = "#FF69B4" },
+                    new() { Name = "Juices",      NameAr = "عصائر",          Icon = "🥤", ColorHex = "#FFA500" },
+                    new() { Name = "Soups",       NameAr = "شوربات",         Icon = "🥣", ColorHex = "#DC143C" },
                 };
                 context.Categories.AddRange(categories);
                 await context.SaveChangesAsync();
@@ -132,8 +196,8 @@ namespace RestaurantERP.Data
                     new() { Name = "Mixed Grill", NameAr = "مشاوي مشكلة", Price = 150, CostPrice = 65, CategoryId = catDict["Main Dishes"].Id, IsAvailable = true },
                     // Sandwiches
                     new() { Name = "Falafel Sandwich", NameAr = "سندوتش فلافل", Price = 10, CostPrice = 3, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
-                    new() { Name = "Hawawshi", NameAr = "حوواوشي", Price = 35, CostPrice = 15, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
-                    new() { Name = "Club Sandwich", NameAr = " سندوتش فراخ", Price = 55, CostPrice = 22, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
+                    new() { Name = "Hawawshi", NameAr = "هوواوشي", Price = 35, CostPrice = 15, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
+                    new() { Name = "Club Sandwich", NameAr = "كلوب سندوتش", Price = 55, CostPrice = 22, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
                     new() { Name = "Chicken Burger", NameAr = "برجر دجاج", Price = 65, CostPrice = 28, CategoryId = catDict["Sandwiches"].Id, IsAvailable = true },
                     // Salads
                     new() { Name = "Green Salad", NameAr = "سلطة خضراء", Price = 25, CostPrice = 8, CategoryId = catDict["Salads"].Id, IsAvailable = true },
@@ -158,15 +222,34 @@ namespace RestaurantERP.Data
             // Seed Tables
             if (!context.DiningTables.Any())
             {
+                var mainBranch = await context.Branches.FirstOrDefaultAsync(b => b.IsMainBranch);
+                var branch2 = await context.Branches.FirstOrDefaultAsync(b => !b.IsMainBranch && b.IsActive);
+                var mainBranchId = mainBranch?.Id ?? 1;
+                var b2Id = branch2?.Id ?? mainBranchId;
+
                 var tables = new List<DiningTable>();
-                for (int i = 1; i <= 15; i++)
+                // 10 tables for main branch
+                for (int i = 1; i <= 10; i++)
                 {
                     tables.Add(new DiningTable
                     {
                         TableNumber = i.ToString("D2"),
-                        Capacity = i <= 5 ? 2 : i <= 10 ? 4 : 6,
-                        Section = i <= 5 ? "Indoor A" : i <= 10 ? "Indoor B" : "Outdoor",
-                        Status = TableStatus.Available
+                        Capacity = i <= 4 ? 2 : i <= 8 ? 4 : 6,
+                        Section = i <= 4 ? "Indoor A" : i <= 8 ? "Indoor B" : "Outdoor",
+                        Status = TableStatus.Available,
+                        BranchId = mainBranchId
+                    });
+                }
+                // 5 tables for branch 2
+                for (int i = 1; i <= 5; i++)
+                {
+                    tables.Add(new DiningTable
+                    {
+                        TableNumber = i.ToString("D2"),
+                        Capacity = i <= 2 ? 2 : 4,
+                        Section = "Main Hall",
+                        Status = TableStatus.Available,
+                        BranchId = b2Id
                     });
                 }
                 context.DiningTables.AddRange(tables);
@@ -218,6 +301,9 @@ namespace RestaurantERP.Data
                         var discount = random.Next(0, 3) == 0 ? sub * 0.1m : 0;
                         var total = sub + tax - discount;
 
+                        var branchIds = context.Branches.Select(b => b.Id).ToList();
+                        var orderBranchId = branchIds.Count > 0 ? branchIds[random.Next(branchIds.Count)] : 1;
+
                         var order = new Order
                         {
                             OrderNumber = $"ORD-{DateTime.Now.AddDays(-day):yyyyMMdd}-{o + 1:D3}",
@@ -227,6 +313,7 @@ namespace RestaurantERP.Data
                             OrderType = (OrderType)random.Next(0, 3),
                             TableId = random.Next(0, 2) == 0 ? tables[random.Next(tables.Count)].Id : null,
                             CashierId = cashierUser?.Id,
+                            BranchId = orderBranchId,
                             SubTotal = sub,
                             TaxRate = 14,
                             TaxAmount = tax,

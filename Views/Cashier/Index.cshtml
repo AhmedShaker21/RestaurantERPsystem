@@ -1166,6 +1166,7 @@ async function placeOrder() {
 /* ════════════════════════════════════════════════════════════════
    INVOICE
 ════════════════════════════════════════════════════════════════ */
+
 async function showInvoice(orderId) {
     try {
         const data = await API.get(`/Cashier/GetOrderForPrint?id=${orderId}&t=${Date.now()}`);
@@ -1174,6 +1175,11 @@ async function showInvoice(orderId) {
             return;
         }
         const o = data.order || data;
+
+        // Ensure amountPaid is valid, if not, set it to total amount
+        const amountPaid = isNaN(o.amountPaid) || o.amountPaid === 0 ? Number(o.total) : Number(o.amountPaid);
+        const change = isNaN(o.change) ? 0 : Number(o.change);
+
         const rows = (o.items || []).map(i => `
             <tr>
                 <td style="text-align:right;direction:rtl;padding:4px">${i.productNameAr || i.productName}</td>
@@ -1220,10 +1226,10 @@ async function showInvoice(orderId) {
                         <span>TOTAL:</span><span>${Number(o.total).toFixed(2)} ${CURRENCY}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between">
-                        <span>Paid:</span><span>${Number(o.amountPaid).toFixed(2)} ${CURRENCY}</span>
+                        <span>Paid:</span><span>${amountPaid.toFixed(2)} ${CURRENCY}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between">
-                        <span>Change:</span><span>${Number(o.change).toFixed(2)} ${CURRENCY}</span>
+                        <span>Change:</span><span>${change.toFixed(2)} ${CURRENCY}</span>
                     </div>
                 </div>
                 <div style="text-align:center;margin-top:16px;font-size:11px;border-top:1px dashed #333;padding-top:10px">

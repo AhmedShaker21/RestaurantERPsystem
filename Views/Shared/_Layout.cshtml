@@ -1,6 +1,3 @@
-@using Microsoft.AspNetCore.Antiforgery
-@inject IAntiforgery Antiforgery
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -8,163 +5,170 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="__RequestVerificationToken" content="@Antiforgery.GetTokens(Context).RequestToken">
     <title>@(ViewBag.Title ?? "نادي مصنع الطائرات - ERP")</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/jpg" href="~/images.jpg" />
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="~/css/main.css" asp-append-version="true">
-        @RenderSection("HeadStyles", required: false)
-    </head>
-    <body>
-        <div class="app-wrapper">
+    @RenderSection("HeadStyles", required: false)
+</head>
+<body>
+    <div class="app-wrapper">
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <!-- SIDEBAR -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-brand">
+                    <div class="logo-icon">✈️</div>
+                    <div class="brand-text">
+                        <div class="brand-name" data-lang="ar">نادي مصنع الطائرات</div>
+                        <div class="brand-name" data-lang="en" style="display:none">Aircraft Factory Club</div>
+                        <div class="brand-sub">ERP System</div>
+                    </div>
+                </div>
+
+                <nav class="sidebar-nav">
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <div class="sidebar-section-title" data-lang="ar">الرئيسية</div>
+                        <div class="sidebar-section-title" data-lang="en" style="display:none">MAIN</div>
+                        <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
+                    
+                        <div class="sidebar-section-title" data-lang="ar">إدارة المنتجات</div>
+                        <div class="sidebar-section-title" data-lang="en" style="display:none">PRODUCTS</div>
+                        <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span data-t="products">المنتجات</span></a>
+                        <a class="sidebar-link" href="/Admin/Categories"><span class="nav-icon">📂</span><span data-t="categories">الفئات</span></a>
+                        <a class="sidebar-link" href="/Admin/Inventory"><span class="nav-icon">📦</span><span data-t="inventory">المخزون</span></a>
+                    
+                        <div class="sidebar-section-title" data-lang="ar">العمليات</div>
+                        <div class="sidebar-section-title" data-lang="en" style="display:none">OPERATIONS</div>
+                        <a class="sidebar-link" href="/Admin/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
+                        <a class="sidebar-link" href="/Admin/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
+                        <a class="sidebar-link" href="/Admin/Expenses"><span class="nav-icon">💸</span><span data-t="expenses">المصروفات</span></a>
+                        <a class="sidebar-link" href="/Admin/Shifts"><span class="nav-icon">🕐</span><span data-t="shift-management">الورديات</span></a>
+                    
+                        <div class="sidebar-section-title" data-lang="ar">التحليلات</div>
+                        <div class="sidebar-section-title" data-lang="en" style="display:none">ANALYTICS</div>
+                        <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
+                    
+                        <div class="sidebar-section-title" data-lang="ar">النظام</div>
+                        <div class="sidebar-section-title" data-lang="en" style="display:none">SYSTEM</div>
+                        <a class="sidebar-link" href="/Admin/Users"><span class="nav-icon">👥</span><span data-t="users">المستخدمون</span></a>
+                        <a class="sidebar-link" href="/Admin/Settings"><span class="nav-icon">⚙️</span><span data-t="settings">الإعدادات</span></a>
+                    }
+                    else if (User.IsInRole("Manager"))
+                    {
+                        <a class="sidebar-link" href="/Manager/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
+                        <a class="sidebar-link" href="/Manager/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
+                        <a class="sidebar-link" href="/Manager/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
+                    }
+                    else if (User.IsInRole("Cashier"))
+                    {
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
+                        <a class="sidebar-link" href="/Cashier/History"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/Index"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
+                    }
+                    else if (User.IsInRole("Kitchen"))
+                    {
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
+                    }
+                    else if (User.IsInRole("Waiter"))
+                    {
+                        <a class="sidebar-link" href="/Waiter/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
+                        <a class="sidebar-link" href="/Waiter/Index"><span class="nav-icon">📝</span><span data-t="newOrder">طلب جديد</span></a>
+                        <a class="sidebar-link" href="/Waiter/MyOrders"><span class="nav-icon">📋</span><span data-t="myOrders">طلباتي</span></a>
+                    }
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="user-card">
+                        <div class="user-avatar">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")</div>
+                        <div class="user-info">
+                            <div class="user-name">@User.Identity?.Name</div>
+                            <div class="user-role">
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <span>Admin</span>
+                                }
+                                else if (User.IsInRole("Manager"))
+                                {
+
+                                    <span>Manager</span>
+                                }
+                                else if (User.IsInRole("Cashier"))
+                                {
+
+                                    <span>Cashier</span>
+                                }
+                                else if (User.IsInRole("Kitchen"))
+                                {
+
+                                    <span>Kitchen</span>
+                                }
+                                else if (User.IsInRole("Waiter"))
+                                {
+
+                                    <span>Waiter</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <form method="post" action="/Account/Logout" style="margin-top:8px">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline w-full btn-sm">
+                            <span>🚪</span> <span data-t="logout">تسجيل الخروج</span>
+                        </button>
+                    </form>
+                </div>
+            </aside>
+        }
+
+        <!-- MAIN -->
+        <div class="main-content">
 
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <aside class="sidebar" id="sidebar">
-                    <div class="sidebar-brand">
-                        <div class="logo-icon">✈️</div>
-                        <div class="brand-text">
-                            <div class="brand-name" data-lang="ar">نادي مصنع الطائرات</div>
-                            <div class="brand-name" data-lang="en" style="display:none">Aircraft Factory Club</div>
-                            <div class="brand-sub">ERP System</div>
-                        </div>
+                <!-- TOPBAR -->
+                <header class="topbar">
+                    <button class="topbar-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+                    <h1 class="topbar-title">@(ViewBag.PageTitle ?? "نادي مصنع الطائرات")</h1>
+                    <div class="topbar-actions">
+                        <button class="topbar-btn" id="langToggle" title="Language" style="font-size:12px;font-weight:700;width:48px;">عربي</button>
+                        <button class="topbar-btn" id="themeToggle" title="Theme">🌙</button>
                     </div>
-
-                    <nav class="sidebar-nav">
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <div class="sidebar-section-title" data-lang="ar">الرئيسية</div>
-                            <div class="sidebar-section-title" data-lang="en" style="display:none">MAIN</div>
-                            <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
-                            <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                            <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
-
-                            <div class="sidebar-section-title" data-lang="ar">إدارة المنتجات</div>
-                            <div class="sidebar-section-title" data-lang="en" style="display:none">PRODUCTS</div>
-                            <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span data-t="products">المنتجات</span></a>
-                            <a class="sidebar-link" href="/Admin/Categories"><span class="nav-icon">📂</span><span data-t="categories">الفئات</span></a>
-                            <a class="sidebar-link" href="/Admin/Inventory"><span class="nav-icon">📦</span><span data-t="inventory">المخزون</span></a>
-
-                            <div class="sidebar-section-title" data-lang="ar">العمليات</div>
-                            <div class="sidebar-section-title" data-lang="en" style="display:none">OPERATIONS</div>
-                            <a class="sidebar-link" href="/Admin/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                            <a class="sidebar-link" href="/Admin/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
-                            <a class="sidebar-link" href="/Admin/Expenses"><span class="nav-icon">💸</span><span data-t="expenses">المصروفات</span></a>
-                            <a class="sidebar-link" href="/Admin/Shifts"><span class="nav-icon">🕐</span><span data-t="shift-management">الورديات</span></a>
-
-                            <div class="sidebar-section-title" data-lang="ar">التحليلات</div>
-                            <div class="sidebar-section-title" data-lang="en" style="display:none">ANALYTICS</div>
-                            <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
-
-                            <div class="sidebar-section-title" data-lang="ar">النظام</div>
-                            <div class="sidebar-section-title" data-lang="en" style="display:none">SYSTEM</div>
-                            <a class="sidebar-link" href="/Admin/Users"><span class="nav-icon">👥</span><span data-t="users">المستخدمون</span></a>
-                            <a class="sidebar-link" href="/Admin/Settings"><span class="nav-icon">⚙️</span><span data-t="settings">الإعدادات</span></a>
-                        }
-                        else if (User.IsInRole("Manager"))
-                        {
-                            <a class="sidebar-link" href="/Manager/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
-                            <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                            <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
-                            <a class="sidebar-link" href="/Manager/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                            <a class="sidebar-link" href="/Manager/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
-                        }
-                        else if (User.IsInRole("Cashier"))
-                        {
-                            <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                            <a class="sidebar-link" href="/Cashier/History"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                        }
-                        else if (User.IsInRole("Kitchen"))
-                        {
-                            <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
-                        }
-                else if (User.IsInRole("Waiter"))
-                {
-                    <a class="sidebar-link" href="/Waiter/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
-                    <a class="sidebar-link" href="/Waiter/Index"><span class="nav-icon">📝</span><span data-t="newOrder">طلب جديد</span></a>
-                    <a class="sidebar-link" href="/Waiter/MyOrders"><span class="nav-icon">📋</span><span data-t="myOrders">طلباتي</span></a>
-                }
-                    </nav>
-
-                    <div class="sidebar-footer">
-                        <div class="user-card">
-                            <div class="user-avatar">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")</div>
-                            <div class="user-info">
-                                <div class="user-name">@User.Identity?.Name</div>
-                                <div class="user-role">
-                                    @if (User.IsInRole("Admin"))
-                                    {
-                                        <span>Admin</span>
-                                    }
-                                    else if (User.IsInRole("Manager"))
-                                    {
-
-                                        <span>Manager</span>
-                                    }
-                                    else if (User.IsInRole("Cashier"))
-                                    {
-
-                                        <span>Cashier</span>
-                                    }
-                                    else if (User.IsInRole("Kitchen"))
-                                    {
-
-                                        <span>Kitchen</span>
-                                    }   else if (User.IsInRole("Waiter")) { <span>Waiter</span> }
-                                </div>
-                            </div>
-                        </div>
-
-                        <form method="post" action="/Account/Logout" style="margin-top:8px">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline w-full btn-sm">
-                                <span>🚪</span> <span data-t="logout">تسجيل الخروج</span>
-                            </button>
-                        </form>
-                    </div>
-                </aside>
+                </header>
             }
 
-
-            <div class="main-content">
-
-                @if (User.Identity?.IsAuthenticated == true)
+            <!-- CONTENT -->
+            <main class="page-content">
+                @if (TempData["Success"] != null)
                 {
-       
-                    <header class="topbar">
-                        <button class="topbar-btn" onclick="toggleSidebar()" title="Menu">☰</button>
-                        <h1 class="topbar-title">@(ViewBag.PageTitle ?? "نادي مصنع الطائرات")</h1>
-                        <div class="topbar-actions">
-                            <button class="topbar-btn" id="langToggle" title="Language" style="font-size:12px;font-weight:700;width:48px;">عربي</button>
-                            <button class="topbar-btn" id="themeToggle" title="Theme">🌙</button>
-                        </div>
-                    </header>
+                    <div class="alert alert-success">✅ @TempData["Success"]</div>
                 }
-
-                <!-- CONTENT -->
-                <main class="page-content">
-                    @if (TempData["Success"] != null)
-                    {
-                        <div class="alert alert-success">✅ @TempData["Success"]</div>
-                    }
-                    @if (TempData["Error"] != null)
-                    {
-                        <div class="alert alert-danger">❌ @TempData["Error"]</div>
-                    }
-                    @RenderBody()
-                </main>
-            </div>
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger">❌ @TempData["Error"]</div>
+                }
+                @RenderBody()
+            </main>
         </div>
+    </div>
 
-   
-        <div class="toast-container" id="toastContainer"></div>
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-        <script src="~/js/main.js" asp-append-version="true"></script>
-        @RenderSection("Scripts", required: false)
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="~/js/main.js" asp-append-version="true"></script>
+    @RenderSection("Scripts", required: false)
 
-    </body>
+    @using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+</body>
 </html>

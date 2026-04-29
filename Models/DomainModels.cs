@@ -3,6 +3,42 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RestaurantERP.Models
 {
+    // ===================== BRANCH =====================
+    public class Branch
+    {
+        public int Id { get; set; }
+        [Required] public string Name { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? ManagerId { get; set; }
+        public ApplicationUser? Manager { get; set; }
+        public bool IsActive { get; set; } = true;
+        public bool IsMainBranch { get; set; } = false;
+        public string ColorHex { get; set; } = "#2563a8";
+        public string? Icon { get; set; } = "🏢";
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        // Navigation
+        public ICollection<DiningTable> Tables { get; set; } = new List<DiningTable>();
+        public ICollection<Order> Orders { get; set; } = new List<Order>();
+        public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+        public ICollection<Shift> Shifts { get; set; } = new List<Shift>();
+        public ICollection<UserBranch> UserBranches { get; set; } = new List<UserBranch>();
+    }
+
+    // Many-to-many: user can belong to multiple branches
+    public class UserBranch
+    {
+        public int Id { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public ApplicationUser? User { get; set; }
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
+        public bool IsPrimary { get; set; } = false; // default branch for this user
+    }
+
     // ===================== CATEGORY =====================
     public class Category
     {
@@ -13,6 +49,11 @@ namespace RestaurantERP.Models
         public string? Icon { get; set; } = "🍽️";
         public string ColorHex { get; set; } = "#FF6B35";
         public bool IsActive { get; set; } = true;
+        /// <summary>
+        /// If true, items in this category bypass the kitchen queue
+        /// and go directly to Ready (e.g. chips, drinks, packaged snacks)
+        /// </summary>
+        public bool SkipKitchen { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public ICollection<Product> Products { get; set; } = new List<Product>();
     }
@@ -49,6 +90,9 @@ namespace RestaurantERP.Models
         public int Capacity { get; set; } = 4;
         public TableStatus Status { get; set; } = TableStatus.Available;
         public string? Section { get; set; }
+        // Branch FK
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
         public ICollection<Order> Orders { get; set; } = new List<Order>();
     }
 
@@ -67,8 +111,9 @@ namespace RestaurantERP.Models
         public DiningTable? Table { get; set; }
         public string? CashierId { get; set; }
         public ApplicationUser? Cashier { get; set; }
-        public int? ShiftId { get; set; }
-        public Shift? Shift { get; set; }
+        // Branch FK
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
         public string? Notes { get; set; }
@@ -84,7 +129,7 @@ namespace RestaurantERP.Models
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
     }
 
-    public enum OrderStatus { Pending, Preparing, Ready, Completed, Cancelled }
+    public enum OrderStatus { Pending, Preparing, Ready, Completed, Cancelled, Refunded, PartialRefund }
     public enum OrderType { DineIn, Takeaway, Delivery }
     public enum PaymentMethod { Cash, Card, Digital }
 
@@ -96,11 +141,56 @@ namespace RestaurantERP.Models
         public Order? Order { get; set; }
         public int ProductId { get; set; }
         public Product? Product { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductNameAr { get; set; } = string.Empty;
         public int Quantity { get; set; } = 1;
         [Column(TypeName = "decimal(18,2)")] public decimal UnitPrice { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal TotalPrice { get; set; }
         public string? Notes { get; set; }
+        /// <summary>Copied from Category.SkipKitchen at order time</summary>
+        public bool SkipKitchen { get; set; } = false;
     }
+
+    // ===================== REFUND =====================
+    public class Refund
+    {
+        public int Id { get; set; }
+        public string RefundNumber { get; set; } = string.Empty;
+        public int OriginalOrderId { get; set; }
+        public Order? OriginalOrder { get; set; }
+        public string? ProcessedById { get; set; }
+        public ApplicationUser? ProcessedBy { get; set; }
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public RefundType RefundType { get; set; } = RefundType.Full;
+        public RefundMethod RefundMethod { get; set; } = RefundMethod.Cash;
+        [Column(TypeName = "decimal(18,2)")] public decimal RefundAmount { get; set; }
+        [Column(TypeName = "decimal(18,2)")] public decimal RefundTax { get; set; }
+        [Column(TypeName = "decimal(18,2)")] public decimal RefundTotal { get; set; }
+        public string? Reason { get; set; }
+        public string? Notes { get; set; }
+        public RefundStatus Status { get; set; } = RefundStatus.Completed;
+        public ICollection<RefundItem> Items { get; set; } = new List<RefundItem>();
+    }
+
+    public class RefundItem
+    {
+        public int Id { get; set; }
+        public int RefundId { get; set; }
+        public Refund? Refund { get; set; }
+        public int OrderItemId { get; set; }
+        public OrderItem? OrderItem { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string ProductNameAr { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        [Column(TypeName = "decimal(18,2)")] public decimal UnitPrice { get; set; }
+        [Column(TypeName = "decimal(18,2)")] public decimal TotalPrice { get; set; }
+    }
+
+    public enum RefundType { Full, Partial }
+    public enum RefundMethod { Cash, Card, Digital, StoreCredit }
+    public enum RefundStatus { Pending, Completed, Rejected }
 
     // ===================== EXPENSE =====================
     public class Expense
@@ -110,14 +200,16 @@ namespace RestaurantERP.Models
         public string? Description { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal Amount { get; set; }
         public string Category { get; set; } = string.Empty;
+        public string? PaymentMethod { get; set; }
+        public string? Notes { get; set; }
         public DateTime Date { get; set; } = DateTime.Now;
-        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
-        public string? RecordedById { get; set; }
-        public int? ShiftId { get; set; }
-        public Shift? Shift { get; set; }
-        public ApplicationUser? RecordedBy { get; set; }
         public string? CreatedById { get; set; }
         public ApplicationUser? CreatedBy { get; set; }
+        // Branch FK
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
+        public ApplicationUser? RecordedBy { get; set; }
+        public string? RecordedById { get; set; }
     }
 
     // ===================== INVENTORY =====================
@@ -140,6 +232,9 @@ namespace RestaurantERP.Models
         public int Id { get; set; }
         public string Key { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
+        // null = global setting, non-null = branch-specific override
+        public int? BranchId { get; set; }
+        public Branch? Branch { get; set; }
     }
 
     // ===================== SHIFT =====================
@@ -148,14 +243,19 @@ namespace RestaurantERP.Models
         public int Id { get; set; }
         public string UserId { get; set; } = string.Empty;
         public ApplicationUser? User { get; set; }
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
         public DateTime StartTime { get; set; } = DateTime.Now;
         public DateTime? EndTime { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal OpeningCash { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal ClosingCash { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal TotalSales { get; set; }
+        public int TotalOrders { get; set; }
         public bool IsClosed { get; set; } = false;
         public string? Notes { get; set; }
-        public ICollection<Order> Orders { get; set; } = new List<Order>();
-        public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+        // Aliases kept for backward-compat
+        public bool IsActive => !IsClosed;
+        public ApplicationUser? Cashier => User;
+        public ICollection<Order> Orders { get; set; }  // هنا العلاقة مع Orders
     }
 }

@@ -109,13 +109,27 @@ function renderOrders() {
         };
         const cfg = statusConfig[order.status] || { color: '#aaa', icon: 'fa-circle', label: order.status, next: null };
         const itemsHtml = (order.items||[]).map(item => `
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);align-items:center">
-                <div>
-                    <div style="font-weight:600">${item.productName}</div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);align-items:center;${item.skipKitchen ? 'opacity:0.45' : ''}">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="font-weight:600">${item.productName}</span>
+                        ${item.skipKitchen
+                            ? `<span style="background:#22c55e22;color:#22c55e;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.5px;white-space:nowrap">⚡ NO KITCHEN</span>`
+                            : ''}
+                    </div>
                     ${item.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">⚠ ${item.notes}</div>` : ''}
                 </div>
-                <div style="background:${cfg.color}22;color:${cfg.color};font-weight:700;padding:4px 10px;border-radius:20px;font-size:14px">×${item.quantity}</div>
+                <div style="background:${item.skipKitchen ? '#22c55e' : cfg.color}22;color:${item.skipKitchen ? '#22c55e' : cfg.color};font-weight:700;padding:4px 10px;border-radius:20px;font-size:14px;flex-shrink:0">×${item.quantity}</div>
             </div>`).join('');
+
+        // Banner if order has mixed items (some need kitchen, some don't)
+        const mixedBanner = (!order.allSkipKitchen && order.items.some(i => i.skipKitchen))
+            ? `<div style="background:#f59e0b22;border:1px solid #f59e0b55;border-radius:8px;padding:7px 10px;margin-bottom:10px;font-size:12px;font-weight:700;color:#f59e0b;display:flex;align-items:center;gap:6px">
+                 <i class="fas fa-triangle-exclamation"></i>
+                 Mixed order — dimmed items are ready to serve immediately
+               </div>`
+            : '';
+
         return `
             <div class="card kitchen-card" style="border-top:4px solid ${cfg.color}">
                 <div style="padding:16px">
@@ -133,6 +147,7 @@ function renderOrders() {
                             </span>
                         </div>
                     </div>
+                    ${mixedBanner}
                     <div style="margin-bottom:12px">${itemsHtml}</div>
                     ${cfg.next ? `<button class="btn btn-primary w-100" style="background:${cfg.color};border-color:${cfg.color}" onclick="updateStatus(${order.id}, '${cfg.next}')">
                         <i class="fas ${cfg.nextIcon} me-2"></i>${cfg.nextLabel}

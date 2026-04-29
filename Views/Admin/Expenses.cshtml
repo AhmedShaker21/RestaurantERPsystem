@@ -76,7 +76,7 @@
                         </td>
                         <td style="color:var(--danger);font-weight:600">@e.Amount.ToString("F2") EGP</td>
                         <td>@(e.PaymentMethod)</td>
-                        <td style="font-size:12px">@(e.RecordedBy?.UserName ?? "-")</td>
+                        <td style="font-size:12px">@(e.CreatedBy?.UserName ?? "-")</td>
                         <td style="font-size:12px;color:var(--text-muted)">@e.Description</td>
                         <td>
                             <button class="btn btn-sm btn-outline" onclick="deleteExpense(@e.Id, '@e.Title')" style="color:var(--danger)">

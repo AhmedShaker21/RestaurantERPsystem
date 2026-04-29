@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RestaurantERP.Data;
@@ -11,54 +12,82 @@ namespace RestaurantERP.Controllers
     public class KitchenController : Controller
     {
         private readonly ApplicationDbContext _context;
-        public KitchenController(ApplicationDbContext context) { _context = context; }
+        private readonly BranchService _branchService;
+
+        public KitchenController(ApplicationDbContext context, BranchService branchService)
+        {
+            _context = context;
+            _branchService = branchService;
+        }
 
         public async Task<IActionResult> Index()
         {
-            var orders = await _context.Orders
-                .Include(o => o.Items).ThenInclude(i => i.Product)
-                .Include(o => o.Table)
-                .Where(o => o.Status == OrderStatus.Pending || o.Status == OrderStatus.Preparing)
-                .OrderBy(o => o.CreatedAt)
-                .ToListAsync();
-            return View(orders);
+            var branchId = await _branchService.GetCurrentBranchIdAsync();
+            var branch = await _context.Branches.FindAsync(branchId);
+            ViewBag.Branch = branch;
+            ViewBag.BranchId = branchId;
+            return View();
         }
 
         [HttpGet]
         public async Task<IActionResult> GetPendingOrders()
         {
+            // ── BRANCH FILTER — only show orders for this branch ──
+            var branchId = await _branchService.GetCurrentBranchIdAsync();
+
             var orders = await _context.Orders
-                .Include(o => o.Items).ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product).ThenInclude(p => p!.Category)
                 .Include(o => o.Table)
-                .Where(o => o.Status == OrderStatus.Pending || o.Status == OrderStatus.Preparing || o.Status == OrderStatus.Ready)
+                .Where(o => o.BranchId == branchId)                          // ← KEY FIX
+                .Where(o => o.Status == OrderStatus.Pending
+                         || o.Status == OrderStatus.Preparing
+                         || o.Status == OrderStatus.Ready)
                 .OrderBy(o => o.CreatedAt)
-                .Select(o => new
-                {
-                    o.Id,
-                    o.OrderNumber,
-                    o.CreatedAt,
-                    status = o.Status.ToString(),
-                    orderType = o.OrderType.ToString(),
-                    o.Notes,
-                    tableNumber = o.Table != null ? o.Table.TableNumber : null,
-                    items = o.Items.Select(i => new
-                    {
-                        i.Id, i.Quantity, i.Notes,
-                        productName = i.Product != null ? i.Product.Name : "Unknown",
-                        productNameAr = i.Product != null ? i.Product.NameAr : "Unknown"
-                    })
-                })
                 .ToListAsync();
-            return Json(new { orders });
+
+            var result = orders.Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                o.CreatedAt,
+                status = o.Status.ToString(),
+                orderType = o.OrderType.ToString(),
+                o.Notes,
+                tableNumber = o.Table?.TableNumber,
+                hasKitchenItems = o.Items.Any(i => !i.SkipKitchen),
+                allSkipKitchen = o.Items.All(i => i.SkipKitchen),
+                items = o.Items.Select(i => new
+                {
+                    i.Id,
+                    i.Quantity,
+                    i.Notes,
+                    i.SkipKitchen,
+                    productName = i.ProductName,
+                    productNameAr = i.ProductNameAr,
+                    categoryName = i.Product?.Category?.Name,
+                    categoryIcon = i.Product?.Category?.Icon
+                })
+            });
+
+            return Json(new { orders = result });
         }
 
         [HttpPost]
         public async Task<IActionResult> UpdateStatus([FromBody] KitchenUpdateStatusRequest req)
         {
+            var branchId = await _branchService.GetCurrentBranchIdAsync();
             var order = await _context.Orders.FindAsync(req.OrderId);
-            if (order == null) return Json(new { success = false, message = "Order not found" });
+
+            if (order == null)
+                return Json(new { success = false, message = "Order not found" });
+
+            // Security: prevent kitchen from updating orders of other branches
+            if (order.BranchId != branchId)
+                return Json(new { success = false, message = "Access denied — order belongs to another branch" });
+
             if (!Enum.TryParse<OrderStatus>(req.Status, out var status))
                 return Json(new { success = false, message = "Invalid status" });
+
             order.Status = status;
             if (status == OrderStatus.Completed) order.CompletedAt = DateTime.Now;
             await _context.SaveChangesAsync();
@@ -69,17 +98,21 @@ namespace RestaurantERP.Controllers
     [Authorize(Roles = "Admin,Manager")]
     public class ManagerController : Controller
     {
-        private readonly ApplicationDbContext _context;
-        private readonly AnalyticsService _analytics;
-        public ManagerController(ApplicationDbContext context, AnalyticsService analytics)
+        private readonly ApplicationDbContext _contextApp;
+        private readonly AnalyticsService _analyticsServ;
+        private readonly BranchService _branchServices;
+
+        public ManagerController(ApplicationDbContext context, AnalyticsService analytics, BranchService branchService)
         {
-            _context = context;
-            _analytics = analytics;
+            _contextApp = context;
+            _analyticsServ = analytics;
+            _branchServices = branchService;
         }
 
         public async Task<IActionResult> Index()
         {
-            var stats = await _analytics.GetDashboardStatsAsync();
+            var branchId = await _branchServices.GetCurrentBranchIdAsync();
+            var stats = await _analyticsServ.GetDashboardStatsAsync(branchId);
             return View(stats);
         }
 
@@ -87,22 +120,24 @@ namespace RestaurantERP.Controllers
         {
             from ??= DateTime.Today;
             to ??= DateTime.Today;
-            var orders = await _context.Orders
+            var branchId = await _branchServices.GetCurrentBranchIdAsync();
+
+            var orders = await _contextApp.Orders
                 .Include(o => o.Items)
                 .Include(o => o.Table)
                 .Include(o => o.Cashier)
+                .Include(o => o.Branch)
+                .Where(o => o.BranchId == branchId)
                 .Where(o => o.CreatedAt.Date >= from.Value.Date && o.CreatedAt.Date <= to.Value.Date)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
+
             ViewBag.From = from.Value.ToString("yyyy-MM-dd");
             ViewBag.To = to.Value.ToString("yyyy-MM-dd");
             return View(orders);
         }
 
-        public IActionResult Reports()
-        {
-            return View();
-        }
+        public IActionResult Reports() => View();
     }
 
     public class KitchenUpdateStatusRequest

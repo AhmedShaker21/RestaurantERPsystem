@@ -1,343 +1,1027 @@
-@model IEnumerable<(RestaurantERP.Models.ApplicationUser User, IList<string> Roles)>
-
+@model IEnumerable<(RestaurantERP.Models.ApplicationUser User, IList<string> Roles, List<RestaurantERP.Models.Branch> Branches)>
 @{
-    ViewData["Title"] = "Users";
+    ViewData["Title"] = "User Management";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    var roles = new[] { "Admin", "Manager", "Cashier", "Kitchen", "Waiter" };
-    var roleIcons = new[] { "fa-shield-alt", "fa-user-tie", "fa-cash-register", "fa-utensils", "fa-concierge-bell" };
-    var roleColors = new[] { "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7" };
+    var roles    = ViewBag.Roles    as List<string>                      ?? new();
+    var branches = ViewBag.Branches as List<RestaurantERP.Models.Branch> ?? new();
 
-    var roleColorMap = new Dictionary<string, string>
+    var roleConfig = new Dictionary<string, (string Color, string Gradient, string Icon, string Emoji, string Desc)>
     {
-        { "Admin", "#FF6B6B" },
-        { "Manager", "#4ECDC4" },
-        { "Cashier", "#45B7D1" },
-        { "Kitchen", "#96CEB4" },
-        { "Waiter", "#FFEAA7" }
+        ["Admin"]   = ("#ef4444", "135deg,#ef4444,#dc2626", "fa-shield-halved",  "👑", "Full system access"),
+        ["Manager"] = ("#8b5cf6", "135deg,#8b5cf6,#7c3aed", "fa-user-tie",       "🎯", "Operations & reporting"),
+        ["Cashier"] = ("#2563a8", "135deg,#2563a8,#1d4ed8", "fa-cash-register",  "💰", "POS & order management"),
+        ["Kitchen"] = ("#f59e0b", "135deg,#f59e0b,#d97706", "fa-fire-burner",    "👨‍🍳", "Kitchen display"),
+        ["Waiter"]  = ("#22c55e", "135deg,#22c55e,#16a34a", "fa-concierge-bell", "🍽️", "Tables & order taking"),
     };
 }
 
+<style>
+/* ── Base ─────────────────────────────────────────────────── */
+.users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.user-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    overflow: hidden;
+    transition: transform .25s ease, box-shadow .25s ease;
+    position: relative;
+}
+.user-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.13);
+}
+.user-card.inactive { opacity: .6; }
+
+/* ── Card top accent stripe ───────────────────────────────── */
+.card-stripe {
+    height: 5px;
+    border-radius: 20px 20px 0 0;
+}
+
+/* ── Card hero section ────────────────────────────────────── */
+.card-hero {
+    padding: 24px 24px 18px;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+/* ── Avatar ───────────────────────────────────────────────── */
+.user-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: 0 6px 20px rgba(0,0,0,.2);
+    letter-spacing: -1px;
+}
+.avatar-status {
+    position: absolute;
+    bottom: -3px; right: -3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 3px solid var(--card-bg);
+}
+
+/* ── User info ────────────────────────────────────────────── */
+.user-info { flex: 1; min-width: 0; }
+
+.user-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -.2px;
+}
+.user-name-ar {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    direction: rtl;
+    text-align: left;
+}
+.user-email {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 12px;
+}
+.user-email i { flex-shrink: 0; }
+
+/* ── Role badge ───────────────────────────────────────────── */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+}
+.inactive-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(156,163,175,.15);
+    color: #9ca3af;
+}
+
+/* ── Divider ──────────────────────────────────────────────── */
+.card-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0 20px;
+}
+
+/* ── Stats row ────────────────────────────────────────────── */
+.card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+}
+.stat-cell {
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.stat-cell:first-child { border-right: 1px solid var(--border-color); }
+.stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--text-muted);
+}
+.stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Branches section ─────────────────────────────────────── */
+.card-branches-section {
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--border-color);
+}
+.branches-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.branches-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.branch-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1.5px solid;
+    transition: all .15s;
+}
+.branch-tag.primary-tag {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.branch-tag.primary-star {
+    font-size: 9px;
+    opacity: .8;
+}
+.no-branch {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 4px 0;
+}
+
+/* ── Actions ──────────────────────────────────────────────── */
+.card-actions-row {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 8px;
+}
+.action-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-family: inherit;
+}
+.action-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+.action-btn.danger:hover { border-color: #ef4444; color: #ef4444; background: #ef444410; }
+.action-btn.success:hover { border-color: #22c55e; color: #22c55e; background: #22c55e10; }
+
+/* ── Kebab menu ───────────────────────────────────────────── */
+.kebab-btn {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all .15s;
+    z-index: 10;
+}
+.kebab-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 52px; right: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    min-width: 190px;
+    z-index: 200;
+    overflow: hidden;
+}
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background .1s;
+}
+.dropdown-item:hover { background: var(--bg-secondary); }
+.dropdown-item i { width: 16px; font-size: 13px; color: var(--text-muted); }
+.dropdown-sep { height: 1px; background: var(--border-color); margin: 4px 0; }
+
+/* ── Role filter tabs ─────────────────────────────────────── */
+.role-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.role-tab {
+    padding: 8px 18px;
+    border-radius: 30px;
+    border: 2px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all .2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.role-tab .cnt { background: rgba(0,0,0,.1); padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+.role-tab.active { color: #fff; border-color: transparent; }
+
+/* ── Branch check grid ────────────────────────────────────── */
+.branch-checkgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.branch-check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    transition: all .15s;
+    user-select: none;
+}
+.branch-check-item.selected { border-color: var(--primary); background: var(--primary-light); }
+.branch-check-item input { display: none; }
+
+/* ── Menu items ───────────────────────────────────────────── */
+.menu-item {
+    display:flex; align-items:center; gap:10px;
+    width:100%; padding:11px 16px; border:none;
+    background:transparent; color:var(--text-primary);
+    font-size:13px; cursor:pointer; text-align:left;
+    font-family:inherit; transition:background .1s; font-weight:600;
+}
+.menu-item:hover { background:var(--bg-secondary); }
+.menu-item i { width:16px; font-size:13px; color:var(--text-muted); }
+
+/* ── List view ────────────────────────────────────────────── */
+.users-list { display: flex; flex-direction: column; gap: 10px; }
+.users-list .user-card { border-radius: 14px; }
+</style>
+
+<!-- ── PAGE HEADER ─────────────────────────────────────────── -->
 <div class="page-header">
     <div>
-        <h1 class="page-title" data-t="users">Users</h1>
-        <p class="page-subtitle">@Model.Count() <span data-t="totalUsers">total users</span></p>
+        <h1 class="page-title">
+            <i class="fas fa-users me-2" style="color:var(--primary)"></i>User Management
+        </h1>
+        <p class="page-subtitle">@Model.Count() users · @Model.Count(m => m.User.IsActive) active · @branches.Count branches</p>
     </div>
-
     <button class="btn btn-primary" onclick="Modal.open('addUserModal')">
-        <i class="fas fa-user-plus me-2"></i>
-        <span data-t="addUser">Add User</span>
+        <i class="fas fa-user-plus me-2"></i>Add User
     </button>
 </div>
 
-<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px">
-    @for (int i = 0; i < roles.Length; i++)
+<!-- ── ROLE STAT CARDS ─────────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:28px">
+    <div class="card" style="padding:18px;text-align:center;border-top:4px solid #6b7280;cursor:pointer" onclick="filterByRoleTab('',null)">
+        <div style="font-size:28px;font-weight:900;color:var(--text-primary);line-height:1">@Model.Count()</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-top:5px">All Users</div>
+        <div style="font-size:11px;color:#22c55e;font-weight:600;margin-top:4px">@Model.Count(m => m.User.IsActive) active</div>
+    </div>
+    @foreach (var (roleName,(color,gradient,icon,emoji,desc)) in roleConfig)
     {
-        var role = roles[i];
-        var count = Model.Count(m => m.Roles.Contains(role));
-
-        <div class="stat-card" style="border-left:4px solid @roleColors[i]">
-            <div class="stat-icon" style="background:@(roleColors[i])22;color:@roleColors[i]">
-                <i class="fas @roleIcons[i]"></i>
-            </div>
-            <div class="stat-value">@count</div>
-            <div class="stat-label">@role</div>
+        var cnt = Model.Count(m => m.Roles.Contains(roleName));
+        <div class="card" style="padding:18px;text-align:center;border-top:4px solid @color;cursor:pointer;transition:transform .2s"
+             onclick="filterByRoleTab('@roleName',null)"
+             onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="font-size:22px;margin-bottom:6px">@emoji</div>
+            <div style="font-size:26px;font-weight:900;color:@color;line-height:1">@cnt</div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-top:5px">@roleName</div>
         </div>
     }
 </div>
 
-<div class="card">
-    <div class="card-header" style="display:flex;gap:12px;flex-wrap:wrap">
-        <input type="text"
-               id="userSearchInput"
-               class="form-control"
-               style="max-width:250px"
-               placeholder="Search users..."
-               oninput="filterUsers(this.value)" />
-
-        <select class="form-control" style="max-width:180px" onchange="filterByRole(this.value)">
-            <option value="">All Roles</option>
-            @foreach (var r in roles)
-            {
-                <option value="@r">@r</option>
-            }
-        </select>
+<!-- ── TOOLBAR ─────────────────────────────────────────────── -->
+<div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+    <div style="position:relative;flex:1;min-width:240px">
+        <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px"></i>
+        <input type="text" id="searchInput" placeholder="Search name, email, role..."
+               class="form-control" style="padding-left:40px;border-radius:30px;height:42px"
+               oninput="applyFilters()">
     </div>
-
-    <div class="table-container">
-        <table class="data-table" id="usersTable">
-            <thead>
-                <tr>
-                    <th data-t="user">User</th>
-                    <th data-t="email">Email</th>
-                    <th data-t="role">Role</th>
-                    <th data-t="status">Status</th>
-                    <th data-t="actions">Actions</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                @foreach (var item in Model)
-                {
-                    var appUser = item.User;
-                    var userRoles = item.Roles ?? new List<string>();
-                    var mainRole = userRoles.FirstOrDefault() ?? "None";
-                    var isActive = appUser.IsActive;
-
-                    var displayName = !string.IsNullOrWhiteSpace(appUser.FullName)
-                        ? appUser.FullName
-                        : appUser.UserName ?? appUser.Email ?? "User";
-
-                    var firstLetter = !string.IsNullOrWhiteSpace(displayName)
-                        ? displayName.Substring(0, 1).ToUpper()
-                        : "?";
-
-                    var color = roleColorMap.ContainsKey(mainRole)
-                        ? roleColorMap[mainRole]
-                        : "#aaa";
-
-                    <tr data-role="@mainRole">
-                        <td>
-                            <div class="d-flex align-items-center gap-3">
-                                <div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0">
-                                    @firstLetter
-                                </div>
-
-                                <div>
-                                    <div style="font-weight:600">@displayName</div>
-                                    <div style="font-size:12px;color:var(--text-muted)" dir="rtl">
-                                        @appUser.FullNameAr
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-
-                        <td>@appUser.Email</td>
-
-                        <td>
-                            <span class="badge" style="background:@(color)22;color:@color;border:1px solid @color">
-                                @mainRole
-                            </span>
-                        </td>
-
-                        <td>
-                            <span class="badge @(isActive ? "badge-success" : "badge-danger")">
-                                @(isActive ? "Active" : "Inactive")
-                            </span>
-                        </td>
-
-                        <td>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline"
-                                        onclick="toggleUser('@item.User.Id', @isActive.ToString().ToLower())"
-                                        title="@(isActive ? "Deactivate" : "Activate")">
-                                    <i class="fas @(isActive ? "fa-user-slash" : "fa-user-check")"></i>
-                                </button>
-
-                                <button class="btn btn-sm btn-outline"
-                                        onclick="resetPassword('@item.User.Id', '@displayName')"
-                                        title="Reset Password">
-                                    <i class="fas fa-key"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <select id="branchFilter" class="form-control" style="max-width:190px;height:42px;border-radius:30px" onchange="applyFilters()">
+        <option value="">All Branches</option>
+        @foreach (var b in branches) { <option value="@b.Id">@b.Icon @b.Name</option> }
+    </select>
+    <select id="statusFilter" class="form-control" style="max-width:150px;height:42px;border-radius:30px" onchange="applyFilters()">
+        <option value="">All Status</option>
+        <option value="active">✅ Active</option>
+        <option value="inactive">⛔ Inactive</option>
+    </select>
+    <div style="display:flex;gap:6px">
+        <button id="viewGrid" onclick="setView('grid')"
+                style="width:42px;height:42px;border-radius:30px;border:2px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;font-size:14px">
+            <i class="fas fa-grip"></i>
+        </button>
+        <button id="viewList" onclick="setView('list')"
+                style="width:42px;height:42px;border-radius:30px;border:2px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px">
+            <i class="fas fa-list"></i>
+        </button>
     </div>
 </div>
 
+<!-- ── ROLE FILTER TABS ─────────────────────────────────────── -->
+<div class="role-tabs" style="margin-bottom:24px">
+    <button class="role-tab active" data-role="" onclick="filterByRoleTab('',this)"
+            style="background:var(--text-muted);border-color:transparent;color:#fff">
+        All <span class="cnt">@Model.Count()</span>
+    </button>
+    @foreach (var (roleName,(color,gradient,icon,emoji,desc)) in roleConfig)
+    {
+        var cnt      = Model.Count(m => m.Roles.Contains(roleName));
+        var tabStyle = $"--rc:{color}";
+        <button class="role-tab" data-role="@roleName" onclick="filterByRoleTab('@roleName',this)" style="@tabStyle">
+            @emoji @roleName <span class="cnt">@cnt</span>
+        </button>
+    }
+</div>
+
+<!-- ── USERS GRID ──────────────────────────────────────────── -->
+<div class="users-grid" id="usersGrid">
+    @foreach (var (user, userRoles, userBranches) in Model)
+    {
+        var mainRole = userRoles.FirstOrDefault() ?? "None";
+        var isActive = user.IsActive;
+        var rCfg     = roleConfig.GetValueOrDefault(mainRole, ("#6b7280","135deg,#6b7280,#4b5563","fa-user","👤","User"));
+
+        var roleColor    = rCfg.Item1;
+        var roleGradient = rCfg.Item2;
+        var roleIcon     = rCfg.Item3;
+        var roleEmoji    = rCfg.Item4;
+
+        var initials = (!string.IsNullOrEmpty(user.FullName)
+            ? user.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2)
+                .Aggregate("", (a, w) => a + char.ToUpper(w[0]))
+            : (user.Email?.Length > 0 ? user.Email[0].ToString().ToUpper() : "?"));
+
+        var branchIds    = string.Join(",", userBranches.Select(b => b?.Id));
+        var pillStyle    = $"background:{roleColor}18;color:{roleColor};border:1.5px solid {roleColor}40";
+        var stripeStyle  = $"background:linear-gradient({roleGradient})";
+        var avatarStyle  = $"background:linear-gradient({roleGradient})";
+
+        <div class="user-card @(!isActive ? "inactive" : "")"
+             data-role="@mainRole"
+             data-status="@(isActive ? "active" : "inactive")"
+             data-branches="@branchIds"
+             data-name="@user.FullName @user.Email">
+
+            <!-- Stripe -->
+            <div class="card-stripe" style="@stripeStyle"></div>
+
+            <!-- Hero -->
+            <div class="card-hero">
+                <div class="user-avatar" style="@avatarStyle">
+                    @initials
+                    <div class="avatar-status" style="background:@(isActive ? "#22c55e" : "#9ca3af")"></div>
+                </div>
+
+                <div class="user-info">
+                    <div class="user-name">
+                        @(string.IsNullOrEmpty(user.FullName) ? user.UserName : user.FullName)
+                    </div>
+                    @if (!string.IsNullOrEmpty(user.FullNameAr))
+                    {
+                        <div class="user-name-ar">@user.FullNameAr</div>
+                    }
+                    <div class="user-email">
+                        <i class="fas fa-at" style="color:@roleColor;font-size:11px"></i>
+                        @user.Email
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span class="role-badge" style="@pillStyle">
+                            <i class="fas @roleIcon" style="font-size:10px"></i>
+                            @mainRole
+                        </span>
+                        @if (!isActive)
+                        {
+                            <span class="inactive-badge">
+                                <i class="fas fa-ban" style="font-size:9px"></i> Inactive
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Kebab -->
+                <button class="kebab-btn" onclick="toggleMenu('@user.Id')">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="dropdown-menu" id="menu-@user.Id">
+                    <button class="menu-item" onclick="editUser('@user.Id','@user.FullName.Replace("'","\\'")', '@user.FullNameAr.Replace("'","\\'")', '@user.Email', '@mainRole'); closeMenus()">
+                        <i class="fas fa-pen-to-square"></i> Edit Info
+                    </button>
+                    <button class="menu-item" onclick="manageBranches('@user.Id','@user.FullName.Replace("'","\\'")', '@branchIds', @(user.DefaultBranchId?.ToString() ?? "null")); closeMenus()">
+                        <i class="fas fa-code-branch"></i> Manage Branches
+                    </button>
+                    <button class="menu-item" onclick="resetPassword('@user.Id','@user.FullName.Replace("'","\\'")', '@user.Email'); closeMenus()">
+                        <i class="fas fa-key"></i> Reset Password
+                    </button>
+                    <div class="dropdown-sep"></div>
+                    <button class="menu-item" style="color:@(isActive ? "#ef4444" : "#22c55e")"
+                            onclick="toggleUser('@user.Id', @(isActive ? "true" : "false")); closeMenus()">
+                        <i class="fas fa-@(isActive ? "ban" : "circle-check")"></i>
+                        @(isActive ? "Deactivate" : "Activate")
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats row -->
+            <div class="card-stats">
+                <div class="stat-cell">
+                    <div class="stat-label"><i class="fas fa-calendar-alt me-1"></i>Joined</div>
+                    <div class="stat-value">@user.CreatedAt.ToString("MMM yyyy")</div>
+                </div>
+                <div class="stat-cell">
+                    <div class="stat-label"><i class="fas fa-envelope me-1"></i>Email Status</div>
+                    <div class="stat-value" style="color:@(user.EmailConfirmed ? "#22c55e" : "#f59e0b")">
+                        @(user.EmailConfirmed ? "✓ Confirmed" : "⚠ Pending")
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branches -->
+            <div class="card-branches-section">
+                <div class="branches-label">
+                    <i class="fas fa-code-branch" style="color:@roleColor"></i>
+                    Branch Access (@userBranches.Count(b => b != null))
+                </div>
+                <div class="branches-list">
+                    @if (!userBranches.Any(b => b != null))
+                    {
+                        <span class="no-branch">
+                            <i class="fas fa-exclamation-circle me-1" style="color:#f59e0b"></i>
+                            No branch assigned
+                        </span>
+                    }
+                    else
+                    {
+                        @foreach (var b in userBranches.Where(b => b != null).Take(4))
+                        {
+                            var isPrimary = b!.Id == user.DefaultBranchId;
+                            var tagStyle  = isPrimary
+                                ? $"background:{b.ColorHex}15;border-color:{b.ColorHex};color:{b.ColorHex}"
+                                : $"background:var(--bg-secondary);border-color:var(--border-color);color:var(--text-muted)";
+                            <span class="branch-tag" style="@tagStyle">
+                                <span style="font-size:13px">@b.Icon</span>
+                                <span>@b.Name</span>
+                                @if (isPrimary)
+                                {
+                                    <span class="branch-tag primary-star" style="background:@(b.ColorHex)25;padding:1px 5px;border-radius:10px">★</span>
+                                }
+                            </span>
+                        }
+                        @if (userBranches.Count(b => b != null) > 4)
+                        {
+                            <span class="branch-tag" style="background:var(--bg-secondary);border-color:var(--border-color);color:var(--text-muted)">
+                                +@(userBranches.Count(b => b != null) - 4) more
+                            </span>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card-actions-row">
+                <button class="action-btn" onclick="editUser('@user.Id','@user.FullName.Replace("'","\\'")', '@user.FullNameAr.Replace("'","\\'")', '@user.Email', '@mainRole')">
+                    <i class="fas fa-pen-to-square"></i> Edit
+                </button>
+                <button class="action-btn" onclick="manageBranches('@user.Id','@user.FullName.Replace("'","\\'")', '@branchIds', @(user.DefaultBranchId?.ToString() ?? "null"))">
+                    <i class="fas fa-code-branch"></i> Branches
+                </button>
+                <button class="action-btn @(isActive ? "danger" : "success")"
+                        onclick="toggleUser('@user.Id', @(isActive ? "true" : "false"))">
+                    <i class="fas fa-@(isActive ? "ban" : "circle-check")"></i>
+                    @(isActive ? "Deactivate" : "Activate")
+                </button>
+            </div>
+
+        </div>
+    }
+</div>
+
+<!-- Empty state -->
+<div id="emptyState" style="display:none;text-align:center;padding:100px 40px;color:var(--text-muted)">
+    <i class="fas fa-users-slash fa-3x" style="opacity:.12;margin-bottom:20px;display:block"></i>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px">No users found</div>
+    <div style="font-size:13px">Try adjusting your search or filters</div>
+</div>
+
+<!-- ════════════ MODALS ════════════ -->
+
+<!-- Add User -->
 <div class="modal-overlay" id="addUserModal">
-    <div class="modal" style="max-width:520px">
+    <div class="modal" style="max-width:600px">
         <div class="modal-header">
-            <h3 class="modal-title" data-t="addUser">Add New User</h3>
+            <h3 class="modal-title"><i class="fas fa-user-plus me-2" style="color:var(--primary)"></i>Add New User</h3>
             <button class="modal-close" onclick="Modal.close('addUserModal')">&times;</button>
         </div>
+        <div class="modal-body" style="padding:24px">
 
-        <div class="modal-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
                 <div class="form-group">
-                    <label class="form-label" data-t="fullNameEn">Full Name (EN)</label>
-                    <input type="text" id="newFullName" class="form-control" placeholder="John Smith">
+                    <label class="form-label" style="font-weight:700">Full Name (English) <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="newFullName" class="form-control" placeholder="e.g. Ahmed Ali" style="height:44px;border-radius:10px">
                 </div>
-
                 <div class="form-group">
-                    <label class="form-label" data-t="fullNameAr">Full Name (AR)</label>
-                    <input type="text" id="newFullNameAr" class="form-control" dir="rtl" placeholder="محمد علي">
+                    <label class="form-label" style="font-weight:700">Full Name (Arabic)</label>
+                    <input type="text" id="newFullNameAr" class="form-control" dir="rtl" placeholder="أحمد علي" style="height:44px;border-radius:10px">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" data-t="email">Email</label>
-                <input type="email" id="newEmail" class="form-control" placeholder="user@restaurant.com">
+            <div class="form-group" style="margin-bottom:16px">
+                <label class="form-label" style="font-weight:700">Email Address <span style="color:var(--danger)">*</span></label>
+                <input type="email" id="newEmail" class="form-control" placeholder="user@restaurant.com" style="height:44px;border-radius:10px">
             </div>
 
-            <div class="form-group">
-                <label class="form-label" data-t="password">Password</label>
-                <input type="password" id="newPassword" class="form-control" placeholder="Min 6 characters">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight:700">Password <span style="color:var(--danger)">*</span></label>
+                    <div style="position:relative">
+                        <input type="password" id="newPassword" class="form-control" placeholder="Min 6 characters" style="height:44px;border-radius:10px;padding-right:44px">
+                        <button type="button" onclick="togglePwd('newPassword',this)"
+                                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight:700">Role <span style="color:var(--danger)">*</span></label>
+                    <select id="newRole" class="form-control" style="height:44px;border-radius:10px" onchange="updateRolePreview(this.value)">
+                        @foreach (var r in roles) { <option value="@r">@r</option> }
+                    </select>
+                </div>
             </div>
 
+            <!-- Role preview pill -->
+            <div id="rolePreview" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--bg-secondary);border-radius:14px;margin-bottom:20px;border:1px solid var(--border-color)">
+                <span id="rolePreviewEmoji" style="font-size:28px">👑</span>
+                <div>
+                    <div id="rolePreviewName" style="font-weight:800;font-size:15px">Admin</div>
+                    <div id="rolePreviewDesc" style="font-size:12px;color:var(--text-muted);margin-top:2px">Full system access — all features</div>
+                </div>
+                <span id="rolePreviewBadge" style="margin-left:auto;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:800;background:#ef444418;color:#ef4444">Admin</span>
+            </div>
+
+            <!-- Branch Assignment -->
             <div class="form-group">
-                <label class="form-label" data-t="role">Role</label>
-                <select id="newRole" class="form-control">
-                    @foreach (var r in roles)
+                <label class="form-label" style="font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:12px">
+                    <i class="fas fa-code-branch" style="color:var(--primary)"></i>
+                    Assign to Branches
+                    <span style="font-size:11px;color:var(--text-muted);font-weight:400">(select all that apply)</span>
+                </label>
+                <div class="branch-checkgrid">
+                    @foreach (var b in branches)
                     {
-                        <option value="@r">@r</option>
+                        <label class="branch-check-item" id="nb-@b.Id" onclick="toggleBranchCheck('new', @b.Id)">
+                            <input type="checkbox" value="@b.Id" class="newBranchCheck">
+                            <span style="font-size:22px">@b.Icon</span>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:13px;font-weight:700">@b.Name</div>
+                                <div style="font-size:11px;color:var(--text-muted)">@b.NameAr</div>
+                            </div>
+                            <div style="width:10px;height:10px;border-radius:50%;background:@b.ColorHex;flex-shrink:0"></div>
+                        </label>
                     }
-                </select>
+                </div>
+                <div style="margin-top:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-muted)">
+                    <i class="fas fa-star" style="color:#f59e0b"></i>
+                    <span style="font-weight:700">Primary branch:</span>
+                    <select id="newPrimaryBranch" class="form-control" style="flex:1;height:38px;border-radius:10px">
+                        <option value="">— select primary —</option>
+                        @foreach (var b in branches) { <option value="@b.Id">@b.Icon @b.Name</option> }
+                    </select>
+                </div>
             </div>
         </div>
-
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="Modal.close('addUserModal')" data-t="cancel">Cancel</button>
-
-            <button class="btn btn-primary" onclick="createUser()">
-                <i class="fas fa-user-plus me-2"></i>
-                <span data-t="create">Create User</span>
+        <div class="modal-footer" style="padding:16px 24px">
+            <button class="btn btn-outline" onclick="Modal.close('addUserModal')">Cancel</button>
+            <button class="btn btn-primary" id="createUserBtn" onclick="createUser()" style="min-width:140px">
+                <i class="fas fa-user-plus me-2"></i>Create User
             </button>
         </div>
     </div>
 </div>
 
-<div class="modal-overlay" id="resetPwdModal">
-    <div class="modal" style="max-width:400px">
+<!-- Edit User -->
+<div class="modal-overlay" id="editUserModal">
+    <div class="modal" style="max-width:480px">
         <div class="modal-header">
-            <h3 class="modal-title" data-t="resetPassword">Reset Password</h3>
+            <h3 class="modal-title"><i class="fas fa-user-edit me-2" style="color:var(--primary)"></i>Edit User</h3>
+            <button class="modal-close" onclick="Modal.close('editUserModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:24px">
+            <input type="hidden" id="editUserId">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight:700">Full Name (EN)</label>
+                    <input type="text" id="editFullName" class="form-control" style="height:44px;border-radius:10px">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight:700">Full Name (AR)</label>
+                    <input type="text" id="editFullNameAr" class="form-control" dir="rtl" style="height:44px;border-radius:10px">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+                <label class="form-label" style="font-weight:700">Email</label>
+                <input type="email" id="editEmail" class="form-control" style="height:44px;border-radius:10px">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight:700">Role</label>
+                <select id="editRole" class="form-control" style="height:44px;border-radius:10px">
+                    @foreach (var r in roles) { <option value="@r">@r</option> }
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding:16px 24px">
+            <button class="btn btn-outline" onclick="Modal.close('editUserModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitEditUser()" style="min-width:130px">
+                <i class="fas fa-save me-2"></i>Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Branches -->
+<div class="modal-overlay" id="branchesModal">
+    <div class="modal" style="max-width:540px">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <i class="fas fa-code-branch me-2" style="color:var(--primary)"></i>
+                Branch Access — <span id="branchModalUser" style="color:var(--primary)"></span>
+            </h3>
+            <button class="modal-close" onclick="Modal.close('branchesModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:24px">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">
+                <i class="fas fa-info-circle me-1" style="color:var(--primary)"></i>
+                Select branches this user can access. The primary branch is their default on login.
+            </p>
+            <div class="branch-checkgrid" id="editBranchGrid">
+                @foreach (var b in branches)
+                {
+                    <label class="branch-check-item" id="eb-@b.Id" onclick="toggleBranchCheck('edit', @b.Id)">
+                        <input type="checkbox" value="@b.Id" class="editBranchCheck">
+                        <span style="font-size:22px">@b.Icon</span>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:13px;font-weight:700">@b.Name</div>
+                            <div style="font-size:11px;color:var(--text-muted)">@b.NameAr</div>
+                            @if (!string.IsNullOrEmpty(b.Address))
+                            {
+                                <div style="font-size:10px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@b.Address</div>
+                            }
+                        </div>
+                        <div style="width:12px;height:12px;border-radius:50%;background:@b.ColorHex;flex-shrink:0"></div>
+                    </label>
+                }
+            </div>
+            <div style="margin-top:18px;padding:16px;background:var(--bg-secondary);border-radius:12px;border:1px solid var(--border-color)">
+                <label style="font-size:12px;font-weight:800;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-bottom:10px">
+                    <i class="fas fa-star" style="color:#f59e0b"></i> Primary Branch (default on login)
+                </label>
+                <select id="editPrimaryBranch" class="form-control" style="height:42px;border-radius:10px">
+                    <option value="">— none —</option>
+                    @foreach (var b in branches) { <option value="@b.Id">@b.Icon @b.Name</option> }
+                </select>
+            </div>
+            <input type="hidden" id="branchUserId">
+        </div>
+        <div class="modal-footer" style="padding:16px 24px">
+            <button class="btn btn-outline" onclick="Modal.close('branchesModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitBranches()" style="min-width:170px">
+                <i class="fas fa-save me-2"></i>Save Branch Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password -->
+<div class="modal-overlay" id="resetPwdModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-key me-2" style="color:#f59e0b"></i>Reset Password</h3>
             <button class="modal-close" onclick="Modal.close('resetPwdModal')">&times;</button>
         </div>
-
-        <div class="modal-body">
-            <p id="resetUserName" style="margin-bottom:16px;color:var(--text-muted)"></p>
-
-            <div class="form-group">
-                <label class="form-label" data-t="newPassword">New Password</label>
-                <input type="password" id="resetNewPwd" class="form-control" placeholder="Min 6 characters">
+        <div class="modal-body" style="padding:24px">
+            <div id="resetUserInfo" style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg-secondary);border-radius:14px;margin-bottom:20px;border:1px solid var(--border-color)">
+                <div id="resetUserAvatar" style="width:48px;height:48px;border-radius:14px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">?</div>
+                <div>
+                    <div id="resetUserName" style="font-weight:800;font-size:14px"></div>
+                    <div id="resetUserEmail" style="font-size:12px;color:var(--text-muted);margin-top:2px"></div>
+                </div>
             </div>
-
+            <div class="form-group">
+                <label class="form-label" style="font-weight:700">New Password</label>
+                <div style="position:relative">
+                    <input type="password" id="resetNewPwd" class="form-control" placeholder="Min 6 characters" style="height:44px;border-radius:10px;padding-right:44px">
+                    <button type="button" onclick="togglePwd('resetNewPwd',this)"
+                            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
             <input type="hidden" id="resetUserId">
         </div>
-
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="Modal.close('resetPwdModal')" data-t="cancel">Cancel</button>
-
-            <button class="btn btn-primary" onclick="submitResetPassword()">
-                <i class="fas fa-key me-2"></i>
-                <span data-t="resetPassword">Reset Password</span>
+        <div class="modal-footer" style="padding:16px 24px">
+            <button class="btn btn-outline" onclick="Modal.close('resetPwdModal')">Cancel</button>
+            <button class="btn btn-warning" onclick="submitResetPassword()" style="background:#f59e0b;border-color:#f59e0b;color:#fff;min-width:140px">
+                <i class="fas fa-key me-2"></i>Reset Password
             </button>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    <script>
-        let filterRoleVal = '';
+<script>
+const roleInfo = {
+    Admin:   { emoji:'👑', color:'#ef4444', desc:'Full system access — all features' },
+    Manager: { emoji:'🎯', color:'#8b5cf6', desc:'Operations management & reporting' },
+    Cashier: { emoji:'💰', color:'#2563a8', desc:'POS terminal & order management' },
+    Kitchen: { emoji:'👨‍🍳', color:'#f59e0b', desc:'Kitchen display & order status' },
+    Waiter:  { emoji:'🍽️', color:'#22c55e', desc:'Table management & order taking' },
+};
+const branches = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+    (ViewBag.Branches as List<RestaurantERP.Models.Branch> ?? new()).Select(b => new {
+        id=b.Id, name=b.Name, nameAr=b.NameAr, icon=b.Icon, colorHex=b.ColorHex
+    })));
 
-        function filterUsers(val) {
-            const search = (val || '').toLowerCase();
+let activeRoleFilter = '';
 
-            document.querySelectorAll('#usersTable tbody tr').forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const role = row.dataset.role;
+// ── Filters ───────────────────────────────────────────────────
+function applyFilters() {
+    const q      = document.getElementById('searchInput').value.toLowerCase();
+    const branch = document.getElementById('branchFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    let visible  = 0;
+    document.querySelectorAll('.user-card').forEach(card => {
+        const ok = (!activeRoleFilter || card.dataset.role === activeRoleFilter)
+                && (!q      || (card.dataset.name||'').toLowerCase().includes(q) || card.textContent.toLowerCase().includes(q))
+                && (!status || card.dataset.status === status)
+                && (!branch || (card.dataset.branches||'').split(',').includes(branch));
+        card.style.display = ok ? '' : 'none';
+        if (ok) visible++;
+    });
+    document.getElementById('emptyState').style.display = visible ? 'none' : '';
+}
 
-                const matchesSearch = !search || text.includes(search);
-                const matchesRole = !filterRoleVal || role === filterRoleVal;
+function filterByRoleTab(role, btn) {
+    activeRoleFilter = role;
+    document.querySelectorAll('.role-tab').forEach(t => {
+        t.classList.remove('active');
+        t.style.background = t.style.color = t.style.borderColor = '';
+    });
+    const target = btn || document.querySelector(`.role-tab[data-role="${role}"]`);
+    if (target) {
+        target.classList.add('active');
+        const c = target.style.getPropertyValue('--rc') || 'var(--text-muted)';
+        target.style.background  = c;
+        target.style.color       = '#fff';
+        target.style.borderColor = 'transparent';
+    }
+    applyFilters();
+}
 
-                row.style.display = matchesSearch && matchesRole ? '' : 'none';
-            });
-        }
+function setView(v) {
+    const g = document.getElementById('usersGrid');
+    g.className = v === 'list' ? 'users-list' : 'users-grid';
+    const gb = document.getElementById('viewGrid'), lb = document.getElementById('viewList');
+    gb.style.cssText = v === 'grid' ? 'width:42px;height:42px;border-radius:30px;border:2px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;font-size:14px' : 'width:42px;height:42px;border-radius:30px;border:2px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px';
+    lb.style.cssText = v === 'list' ? 'width:42px;height:42px;border-radius:30px;border:2px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;font-size:14px' : 'width:42px;height:42px;border-radius:30px;border:2px solid var(--border-color);background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px';
+}
 
-        function filterByRole(role) {
-            filterRoleVal = role;
-            filterUsers(document.getElementById('userSearchInput')?.value || '');
-        }
+// ── Kebab menu ────────────────────────────────────────────────
+function toggleMenu(id) {
+    closeMenus();
+    const m = document.getElementById('menu-' + id);
+    if (m) m.style.display = m.style.display === 'none' ? '' : 'none';
+}
+function closeMenus() {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+}
+document.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown-menu') && !e.target.closest('.kebab-btn')) closeMenus();
+});
 
-        async function toggleUser(id, currentlyActive) {
-            const action = currentlyActive ? 'deactivate' : 'activate';
+// ── Role preview ──────────────────────────────────────────────
+function updateRolePreview(role) {
+    const info = roleInfo[role] || { emoji:'👤', color:'#6b7280', desc:'Role access' };
+    document.getElementById('rolePreviewEmoji').textContent = info.emoji;
+    document.getElementById('rolePreviewName').textContent  = role;
+    document.getElementById('rolePreviewDesc').textContent  = info.desc;
+    const badge = document.getElementById('rolePreviewBadge');
+    if (badge) { badge.textContent = role; badge.style.background = info.color + '20'; badge.style.color = info.color; }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('newRole');
+    if (sel) updateRolePreview(sel.value);
+});
 
-            if (!confirm(`Are you sure you want to ${action} this user?`)) {
-                return;
-            }
+// ── Branch checkboxes ─────────────────────────────────────────
+function toggleBranchCheck(prefix, id) {
+    const el  = document.getElementById(`${prefix === 'new' ? 'nb' : 'eb'}-${id}`);
+    const chk = el?.querySelector('input[type=checkbox]');
+    if (!chk) return;
+    chk.checked = !chk.checked;
+    el.classList.toggle('selected', chk.checked);
+}
 
-            try {
-                const res = await API.post('/Admin/ToggleUser', {
-                    userId: id
-                });
+// ── Password toggle ───────────────────────────────────────────
+function togglePwd(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    inp.type = inp.type === 'text' ? 'password' : 'text';
+    btn.innerHTML = `<i class="fas fa-eye${inp.type === 'text' ? '-slash' : ''}"></i>`;
+}
 
-                if (res.success) {
-                    Toast.success(res.isActive ? 'User activated successfully' : 'User deactivated successfully');
-                    setTimeout(() => location.reload(), 700);
-                } else {
-                    Toast.error(res.message || 'Failed to update user');
-                }
-            } catch (e) {
-                console.error(e);
-                Toast.error('Error updating user');
-            }
-        }
+// ── Create User ───────────────────────────────────────────────
+async function createUser() {
+    const btn = document.getElementById('createUserBtn');
+    const branchIds = [...document.querySelectorAll('.newBranchCheck:checked')].map(c => parseInt(c.value));
+    const primaryId = parseInt(document.getElementById('newPrimaryBranch').value) || null;
+    const payload = {
+        fullName: document.getElementById('newFullName').value,
+        fullNameAr: document.getElementById('newFullNameAr').value,
+        email: document.getElementById('newEmail').value,
+        password: document.getElementById('newPassword').value,
+        role: document.getElementById('newRole').value,
+        branchIds, primaryBranchId: primaryId
+    };
+    if (!payload.email || !payload.password) { Toast.warning('Email and password are required'); return; }
+    if (payload.password.length < 6) { Toast.warning('Password must be at least 6 characters'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating...';
+    try {
+        const res = await API.post('/Admin/CreateUser', payload);
+        if (res.success) { Toast.success('User created!'); setTimeout(() => location.reload(), 700); }
+        else Toast.error(res.message || 'Failed');
+    } catch(e) { Toast.error('Error creating user'); }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create User';
+}
 
-        function resetPassword(id, name) {
-            document.getElementById('resetUserId').value = id;
-            document.getElementById('resetUserName').textContent = `Resetting password for: ${name}`;
-            document.getElementById('resetNewPwd').value = '';
-            Modal.open('resetPwdModal');
-        }
+// ── Edit User ─────────────────────────────────────────────────
+function editUser(id, fullName, fullNameAr, email, role) {
+    document.getElementById('editUserId').value     = id;
+    document.getElementById('editFullName').value   = fullName;
+    document.getElementById('editFullNameAr').value = fullNameAr;
+    document.getElementById('editEmail').value      = email;
+    document.getElementById('editRole').value       = role;
+    Modal.open('editUserModal');
+}
+async function submitEditUser() {
+    const res = await API.post('/Admin/EditUser', {
+        userId: document.getElementById('editUserId').value,
+        fullName: document.getElementById('editFullName').value,
+        fullNameAr: document.getElementById('editFullNameAr').value,
+        email: document.getElementById('editEmail').value,
+        role: document.getElementById('editRole').value,
+    });
+    if (res.success) { Toast.success('User updated'); setTimeout(() => location.reload(), 700); }
+    else Toast.error(res.message || 'Failed');
+}
 
-        async function submitResetPassword() {
-            const id = document.getElementById('resetUserId').value;
-            const pwd = document.getElementById('resetNewPwd').value;
+// ── Manage Branches ───────────────────────────────────────────
+function manageBranches(userId, userName, branchIdsCsv, primaryBranchId) {
+    document.getElementById('branchUserId').value = userId;
+    document.getElementById('branchModalUser').textContent = userName;
+    const assignedIds = branchIdsCsv ? branchIdsCsv.split(',').map(Number).filter(Boolean) : [];
+    document.querySelectorAll('.editBranchCheck').forEach(chk => {
+        chk.checked = false;
+        document.getElementById('eb-' + chk.value)?.classList.remove('selected');
+    });
+    assignedIds.forEach(bid => {
+        const chk = document.querySelector(`.editBranchCheck[value="${bid}"]`);
+        if (chk) { chk.checked = true; document.getElementById('eb-' + bid)?.classList.add('selected'); }
+    });
+    document.getElementById('editPrimaryBranch').value = primaryBranchId || '';
+    Modal.open('branchesModal');
+}
+async function submitBranches() {
+    const userId    = document.getElementById('branchUserId').value;
+    const branchIds = [...document.querySelectorAll('.editBranchCheck:checked')].map(c => parseInt(c.value));
+    const primaryId = parseInt(document.getElementById('editPrimaryBranch').value) || null;
+    const res = await API.post('/Admin/UpdateUserBranches', { userId, branchIds, primaryBranchId: primaryId });
+    if (res.success) { Toast.success('Branches updated!'); setTimeout(() => location.reload(), 700); }
+    else Toast.error(res.message || 'Failed');
+}
 
-            if (!pwd || pwd.length < 6) {
-                Toast.warning('Password must be at least 6 characters');
-                return;
-            }
+// ── Toggle Active ─────────────────────────────────────────────
+async function toggleUser(id, currentlyActive) {
+    const action = currentlyActive === 'true' ? 'deactivate' : 'activate';
+    if (!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} this user?`)) return;
+    const res = await API.post('/Admin/ToggleUser', { userId: id });
+    if (res.success) { Toast.success(`User ${action}d`); setTimeout(() => location.reload(), 700); }
+    else Toast.error(res.message || 'Failed');
+}
 
-            try {
-                const res = await API.post('/Admin/ResetPassword', {
-                    userId: id,
-                    newPassword: pwd
-                });
-
-                if (res.success) {
-                    Toast.success('Password reset successfully');
-                    Modal.close('resetPwdModal');
-                } else {
-                    Toast.error(res.message || 'Failed');
-                }
-            } catch (e) {
-                console.error(e);
-                Toast.error('Error resetting password');
-            }
-        }
-
-        async function createUser() {
-            const payload = {
-                fullName: document.getElementById('newFullName').value,
-                fullNameAr: document.getElementById('newFullNameAr').value,
-                email: document.getElementById('newEmail').value,
-                password: document.getElementById('newPassword').value,
-                role: document.getElementById('newRole').value
-            };
-
-            if (!payload.email || !payload.password) {
-                Toast.warning('Email and password are required');
-                return;
-            }
-
-            try {
-                const res = await API.post('/Admin/CreateUser', payload);
-
-                if (res.success) {
-                    Toast.success('User created successfully');
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    const msg = res.errors ? res.errors.join('<br>') : (res.message || 'Failed to create user');
-                    Toast.error(msg);
-                }
-            } catch (e) {
-                console.error(e);
-                Toast.error('Error creating user');
-            }
-        }
-    </script>
+// ── Reset Password ────────────────────────────────────────────
+function resetPassword(id, name, email) {
+    document.getElementById('resetUserId').value = id;
+    document.getElementById('resetUserName').textContent  = name || email;
+    document.getElementById('resetUserEmail').textContent = email;
+    document.getElementById('resetUserAvatar').textContent = (name || email || '?')[0].toUpperCase();
+    document.getElementById('resetNewPwd').value = '';
+    Modal.open('resetPwdModal');
+}
+async function submitResetPassword() {
+    const pwd = document.getElementById('resetNewPwd').value;
+    if (!pwd || pwd.length < 6) { Toast.warning('Password must be at least 6 characters'); return; }
+    const res = await API.post('/Admin/ResetUserPassword', { userId: document.getElementById('resetUserId').value, newPassword: pwd });
+    if (res.success) { Toast.success('Password reset!'); Modal.close('resetPwdModal'); }
+    else Toast.error(res.message || 'Failed');
+}
+</script>
 }

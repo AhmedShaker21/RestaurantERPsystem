@@ -6,7 +6,6 @@ using RestaurantERP.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -36,6 +35,8 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<BranchService>();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 

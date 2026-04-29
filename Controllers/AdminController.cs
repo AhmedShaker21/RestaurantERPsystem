@@ -16,11 +16,8 @@ namespace RestaurantERP.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly AnalyticsService _analytics;
 
-        public AdminController(
-            ApplicationDbContext context,
-            UserManager<ApplicationUser> userManager,
-            RoleManager<IdentityRole> roleManager,
-            AnalyticsService analytics)
+        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager, AnalyticsService analytics)
         {
             _context = context;
             _userManager = userManager;
@@ -28,78 +25,71 @@ namespace RestaurantERP.Controllers
             _analytics = analytics;
         }
 
-        public async Task<IActionResult> Index()
+        // ===== DASHBOARD =====
+        public async Task<IActionResult> Index(int? branchId)
         {
-            var stats = await _analytics.GetDashboardStatsAsync();
+            var branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
+            var selectedBranch = branchId.HasValue ? branches.FirstOrDefault(b => b.Id == branchId) : null;
+
+            ViewBag.Branches = branches;
+            ViewBag.SelectedBranch = selectedBranch;
+            ViewBag.SelectedBranchId = branchId;
+
+            var stats = await _analytics.GetDashboardStatsAsync(branchId);
             return View(stats);
         }
 
+        // ===== ANALYTICS API =====
         [HttpGet]
-        public async Task<IActionResult> GetStats()
+        public async Task<IActionResult> GetStats(int? branchId)
         {
-            var stats = await _analytics.GetDashboardStatsAsync();
+            var stats = await _analytics.GetDashboardStatsAsync(branchId);
             return Json(stats);
         }
 
+        // ===== PRODUCTS =====
         public async Task<IActionResult> Products(string? search, int? categoryId, bool? active)
         {
             var query = _context.Products.Include(p => p.Category).AsQueryable();
-
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(p => p.Name.Contains(search) || p.NameAr.Contains(search));
-
             if (categoryId.HasValue)
                 query = query.Where(p => p.CategoryId == categoryId);
-
             if (active.HasValue)
                 query = query.Where(p => p.IsActive == active);
 
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
             ViewBag.Search = search;
             ViewBag.CategoryId = categoryId;
-
             return View(await query.OrderByDescending(p => p.CreatedAt).ToListAsync());
         }
 
         public async Task<IActionResult> CreateProduct()
         {
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
-
-            return View(new Product
-            {
-                IsActive = true,
-                IsAvailable = true,
-                MinStockAlert = 2
-            });
+            return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateProduct(Product model)
         {
-            if (!ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
-                return View(model);
+                model.CreatedAt = DateTime.Now;
+                _context.Products.Add(model);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Product created successfully!";
+                return RedirectToAction(nameof(Products));
             }
-
-            if (string.IsNullOrWhiteSpace(model.Barcode))
-                model.Barcode = "P" + DateTime.Now.ToString("yyyyMMddHHmmss");
-
-            model.CreatedAt = DateTime.Now;
-
-            _context.Products.Add(model);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Product created successfully!";
-            return RedirectToAction(nameof(Products));
+            ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+            return View(model);
         }
 
         public async Task<IActionResult> EditProduct(int id)
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null) return NotFound();
-
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
             return View(product);
         }
@@ -109,17 +99,14 @@ namespace RestaurantERP.Controllers
         public async Task<IActionResult> EditProduct(int id, Product model)
         {
             if (id != model.Id) return NotFound();
-
             if (ModelState.IsValid)
             {
                 model.UpdatedAt = DateTime.Now;
                 _context.Update(model);
                 await _context.SaveChangesAsync();
-
                 TempData["Success"] = "Product updated successfully!";
                 return RedirectToAction(nameof(Products));
             }
-
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
             return View(model);
         }
@@ -131,7 +118,6 @@ namespace RestaurantERP.Controllers
             if (product == null) return Json(new { success = false });
 
             var hasOrders = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id);
-
             if (hasOrders)
             {
                 product.IsActive = false;
@@ -141,7 +127,6 @@ namespace RestaurantERP.Controllers
             {
                 _context.Products.Remove(product);
             }
-
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
@@ -151,19 +136,17 @@ namespace RestaurantERP.Controllers
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null) return Json(new { success = false });
-
             product.IsAvailable = !product.IsAvailable;
             await _context.SaveChangesAsync();
-
             return Json(new { success = true, isAvailable = product.IsAvailable });
         }
 
+        // ===== CATEGORIES =====
         public async Task<IActionResult> Categories()
         {
             var cats = await _context.Categories
                 .Include(c => c.Products)
                 .ToListAsync();
-
             return View(cats);
         }
 
@@ -179,7 +162,6 @@ namespace RestaurantERP.Controllers
             {
                 _context.Update(model);
             }
-
             await _context.SaveChangesAsync();
             return Json(new { success = true, id = model.Id });
         }
@@ -189,35 +171,35 @@ namespace RestaurantERP.Controllers
         {
             var cat = await _context.Categories.FindAsync(id);
             if (cat == null) return Json(new { success = false });
-
             var hasProducts = await _context.Products.AnyAsync(p => p.CategoryId == id);
-            if (hasProducts)
-                return Json(new { success = false, message = "Category has products" });
-
+            if (hasProducts) return Json(new { success = false, message = "Category has products" });
             _context.Categories.Remove(cat);
             await _context.SaveChangesAsync();
-
             return Json(new { success = true });
         }
 
+        // ===== USERS =====
         public async Task<IActionResult> Users()
         {
-            var users = await _userManager.Users.ToListAsync();
+            var users = await _userManager.Users
+                .Include(u => u.DefaultBranch)
+                .Include(u => u.UserBranches).ThenInclude(ub => ub.Branch)
+                .ToListAsync();
 
-            var model = new List<(ApplicationUser User, IList<string> Roles)>();
-
+            var userWithRoles = new List<(ApplicationUser User, IList<string> Roles, List<Branch> Branches)>();
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                model.Add((user, roles));
+                var branches = user.UserBranches?.Select(ub => ub.Branch!).Where(b => b != null).ToList()
+                               ?? new List<Branch>();
+                userWithRoles.Add((user, roles, branches));
             }
 
-            ViewBag.Roles = await _roleManager.Roles
-                .Select(r => r.Name!)
-                .ToListAsync();
-
-            return View(model);
+            ViewBag.Roles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
+            ViewBag.Branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
+            return View(userWithRoles);
         }
+
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest req)
         {
@@ -228,47 +210,46 @@ namespace RestaurantERP.Controllers
                 FullName = req.FullName,
                 FullNameAr = req.FullNameAr,
                 EmailConfirmed = true,
-                IsActive = true
+                IsActive = true,
+                DefaultBranchId = req.BranchIds?.FirstOrDefault() > 0
+                                    ? req.BranchIds.First()
+                                    : null
             };
 
             var result = await _userManager.CreateAsync(user, req.Password);
-
             if (!result.Succeeded)
-                return Json(new { success = false, errors = result.Errors.Select(e => e.Description) });
+                return Json(new { success = false, message = string.Join(", ", result.Errors.Select(e => e.Description)) });
 
             await _userManager.AddToRoleAsync(user, req.Role);
-            return Json(new { success = true });
+
+            // Assign to branches
+            if (req.BranchIds != null && req.BranchIds.Any())
+            {
+                bool first = true;
+                foreach (var bid in req.BranchIds)
+                {
+                    _context.UserBranches.Add(new UserBranch
+                    {
+                        UserId = user.Id,
+                        BranchId = bid,
+                        IsPrimary = first
+                    });
+                    first = false;
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { success = true, userId = user.Id });
         }
 
         [HttpPost]
-        public async Task<IActionResult> ToggleUser([FromBody] ToggleUserRequest req)
+        public async Task<IActionResult> ToggleUser(string id)
         {
-            if (req == null || string.IsNullOrWhiteSpace(req.UserId))
-                return Json(new { success = false, message = "User id is required" });
-
-            var user = await _userManager.FindByIdAsync(req.UserId);
-
-            if (user == null)
-                return Json(new { success = false, message = "User not found" });
-
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return Json(new { success = false });
             user.IsActive = !user.IsActive;
-
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                return Json(new
-                {
-                    success = false,
-                    message = string.Join(", ", result.Errors.Select(e => e.Description))
-                });
-            }
-
-            return Json(new
-            {
-                success = true,
-                isActive = user.IsActive
-            });
+            await _userManager.UpdateAsync(user);
+            return Json(new { success = true, isActive = user.IsActive });
         }
 
         [HttpPost]
@@ -276,21 +257,19 @@ namespace RestaurantERP.Controllers
         {
             var user = await _userManager.FindByIdAsync(req.UserId);
             if (user == null) return Json(new { success = false });
-
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var result = await _userManager.ResetPasswordAsync(user, token, req.NewPassword);
-
             return Json(new { success = result.Succeeded });
         }
 
+        // ===== ORDERS =====
         public async Task<IActionResult> Orders(DateTime? from, DateTime? to, string? status)
         {
             from ??= DateTime.Today.AddDays(-30);
             to ??= DateTime.Today;
 
             var query = _context.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Table)
                 .Include(o => o.Cashier)
                 .Where(o => o.CreatedAt.Date >= from.Value.Date && o.CreatedAt.Date <= to.Value.Date);
@@ -301,32 +280,26 @@ namespace RestaurantERP.Controllers
             ViewBag.From = from.Value.ToString("yyyy-MM-dd");
             ViewBag.To = to.Value.ToString("yyyy-MM-dd");
             ViewBag.Status = status;
-
             return View(await query.OrderByDescending(o => o.CreatedAt).ToListAsync());
         }
 
         public async Task<IActionResult> OrderDetails(int id)
         {
             var order = await _context.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Table)
                 .Include(o => o.Cashier)
                 .FirstOrDefaultAsync(o => o.Id == id);
-
             if (order == null) return NotFound();
-
             return View(order);
         }
 
+        // ===== TABLES =====
         public async Task<IActionResult> Tables()
         {
             var tables = await _context.DiningTables
-                .Include(t => t.Orders.Where(o =>
-                    o.Status == OrderStatus.Pending ||
-                    o.Status == OrderStatus.Preparing))
+                .Include(t => t.Orders.Where(o => o.Status == OrderStatus.Pending || o.Status == OrderStatus.Preparing))
                 .ToListAsync();
-
             return View(tables);
         }
 
@@ -337,92 +310,37 @@ namespace RestaurantERP.Controllers
                 _context.DiningTables.Add(model);
             else
                 _context.Update(model);
-
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
 
+        // ===== EXPENSES =====
         public async Task<IActionResult> Expenses(DateTime? from, DateTime? to)
         {
             from ??= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
             to ??= DateTime.Today;
-
             var expenses = await _context.Expenses
                 .Include(e => e.CreatedBy)
                 .Where(e => e.Date.Date >= from.Value.Date && e.Date.Date <= to.Value.Date)
                 .OrderByDescending(e => e.Date)
                 .ToListAsync();
-
             ViewBag.From = from.Value.ToString("yyyy-MM-dd");
             ViewBag.To = to.Value.ToString("yyyy-MM-dd");
             ViewBag.Total = expenses.Sum(e => e.Amount);
-
             return View(expenses);
         }
 
         [HttpPost]
-        public async Task<IActionResult> SaveExpense([FromBody] SaveExpenseRequest req)
+        public async Task<IActionResult> SaveExpense([FromBody] Expense model)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(req.Title) || req.Amount <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Title and amount are required"
-                    });
-                }
-
-                var userId = _userManager.GetUserId(User);
-
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "User not found"
-                    });
-                }
-
-                var currentShift = await _context.Shifts
-                    .FirstOrDefaultAsync(s => s.UserId == userId && !s.IsClosed);
-
-                if (currentShift == null)
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "لازم تفتح وردية الأول"
-                    });
-                }
-
-                var expense = new Expense
-                {
-                    Title = req.Title,
-                    Amount = req.Amount,
-                    Date = req.Date == default ? DateTime.Today : req.Date,
-                    Category = req.Category,
-                    PaymentMethod = req.PaymentMethod,
-                    Description = req.Description,
-                    CreatedById = userId,
-                    ShiftId = currentShift.Id
-                };
-
-                _context.Expenses.Add(expense);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = ex.Message,
-                    inner = ex.InnerException?.Message
-                });
-            }
+            var userId = _userManager.GetUserId(User);
+            model.CreatedById = userId;
+            if (model.Id == 0)
+                _context.Expenses.Add(model);
+            else
+                _context.Update(model);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
         }
 
         [HttpPost]
@@ -430,13 +348,12 @@ namespace RestaurantERP.Controllers
         {
             var expense = await _context.Expenses.FindAsync(id);
             if (expense == null) return Json(new { success = false });
-
             _context.Expenses.Remove(expense);
             await _context.SaveChangesAsync();
-
             return Json(new { success = true });
         }
 
+        // ===== INVENTORY =====
         public async Task<IActionResult> Inventory()
         {
             var products = await _context.Products
@@ -444,7 +361,6 @@ namespace RestaurantERP.Controllers
                 .Where(p => p.IsActive)
                 .OrderBy(p => p.StockQuantity)
                 .ToListAsync();
-
             return View(products);
         }
 
@@ -453,12 +369,9 @@ namespace RestaurantERP.Controllers
         {
             var product = await _context.Products.FindAsync(req.ProductId);
             if (product == null) return Json(new { success = false });
-
             var before = product.StockQuantity;
-
             product.StockQuantity += req.Quantity;
             product.TrackStock = true;
-
             _context.InventoryLogs.Add(new InventoryLog
             {
                 ProductId = req.ProductId,
@@ -469,12 +382,11 @@ namespace RestaurantERP.Controllers
                 CreatedAt = DateTime.Now,
                 CreatedById = _userManager.GetUserId(User)
             });
-
             await _context.SaveChangesAsync();
-
             return Json(new { success = true, newStock = product.StockQuantity });
         }
 
+        // ===== SETTINGS =====
         public async Task<IActionResult> Settings()
         {
             var settings = await _context.SystemSettings.ToListAsync();
@@ -487,38 +399,89 @@ namespace RestaurantERP.Controllers
             foreach (var kvp in settings)
             {
                 var setting = await _context.SystemSettings.FirstOrDefaultAsync(s => s.Key == kvp.Key);
-
                 if (setting != null)
                     setting.Value = kvp.Value;
                 else
                     _context.SystemSettings.Add(new SystemSettings { Key = kvp.Key, Value = kvp.Value });
+            }
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
+        }
+
+        // ===== SHIFTS =====
+        public async Task<IActionResult> Shifts()
+        {
+            var shifts = await _context.Shifts
+                .Include(s => s.User)
+                .Include(s => s.Branch)
+                .OrderByDescending(s => s.StartTime)
+                .Take(100)
+                .ToListAsync();
+            return View(shifts);
+        }
+
+        // ===== REPORTS =====
+        public async Task<IActionResult> Reports()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateUserBranches([FromBody] UpdateUserBranchesRequest req)
+        {
+            // Remove existing assignments
+            var existing = await _context.UserBranches
+                .Where(ub => ub.UserId == req.UserId).ToListAsync();
+            _context.UserBranches.RemoveRange(existing);
+
+            // Re-add new ones
+            var primaryId = req.PrimaryBranchId ?? req.BranchIds.FirstOrDefault();
+            foreach (var bid in req.BranchIds)
+            {
+                _context.UserBranches.Add(new UserBranch
+                {
+                    UserId = req.UserId,
+                    BranchId = bid,
+                    IsPrimary = bid == primaryId
+                });
+            }
+
+            // Update default branch on user
+            var user = await _userManager.FindByIdAsync(req.UserId) as ApplicationUser;
+            if (user != null)
+            {
+                user.DefaultBranchId = req.BranchIds.Contains(primaryId) ? primaryId : req.BranchIds.FirstOrDefault();
+                await _userManager.UpdateAsync(user);
             }
 
             await _context.SaveChangesAsync();
             return Json(new { success = true });
         }
 
-        public async Task<IActionResult> Shifts()
+        [HttpPost]
+        public async Task<IActionResult> EditUser([FromBody] EditUserRequest req)
         {
-            var shifts = await _context.Shifts
-                .Include(s => s.User)
-                .Include(s => s.Orders)
-                .OrderByDescending(s => s.StartTime)
-                .Take(50)
-                .ToListAsync();
+            var user = await _userManager.FindByIdAsync(req.UserId) as ApplicationUser;
+            if (user == null) return Json(new { success = false, message = "User not found" });
 
-            foreach (var shift in shifts)
+            user.FullName = req.FullName;
+            user.FullNameAr = req.FullNameAr;
+            if (req.Email != user.Email)
             {
-                shift.TotalSales = shift.Orders
-                    .Where(o => o.Status == OrderStatus.Completed)
-                    .Sum(o => o.Total);
+                user.Email = req.Email;
+                user.UserName = req.Email;
+            }
+            await _userManager.UpdateAsync(user);
+
+            // Update role if changed
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            if (!currentRoles.Contains(req.Role))
+            {
+                await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                await _userManager.AddToRoleAsync(user, req.Role);
             }
 
-            return View(shifts);
-        }
-        public async Task<IActionResult> Reports()
-        {
-            return View();
+            return Json(new { success = true });
         }
 
         [HttpGet]
@@ -537,8 +500,7 @@ namespace RestaurantERP.Controllers
                 .Where(o => o.CreatedAt.Date == DateTime.Today)
                 .OrderByDescending(o => o.CreatedAt)
                 .Take(count)
-                .Select(o => new
-                {
+                .Select(o => new {
                     o.Id,
                     o.OrderNumber,
                     o.OrderType,
@@ -550,65 +512,36 @@ namespace RestaurantERP.Controllers
                     createdAt = o.CreatedAt
                 })
                 .ToListAsync();
-
             return Json(new { orders });
         }
 
         [HttpGet]
         public async Task<IActionResult> GetActiveShifts()
         {
-            var activeShifts = await _context.Shifts
+            var shifts = await _context.Shifts
                 .Include(s => s.User)
                 .Where(s => !s.IsClosed)
-                .OrderByDescending(s => s.StartTime)
+                .Select(s => new {
+                    s.Id,
+                    s.TotalSales,
+                    cashierName = s.User != null ? s.User.UserName : null,
+                    startTime = s.StartTime.ToString("hh:mm tt")
+                })
                 .ToListAsync();
-
-            var result = new List<object>();
-
-            foreach (var shift in activeShifts)
-            {
-                var shiftOrders = await _context.Orders
-                    .Where(o => o.ShiftId == shift.Id)
-                    .ToListAsync();
-
-                var completedOrders = shiftOrders
-                    .Where(o => o.Status == OrderStatus.Completed)
-                    .ToList();
-
-                var totalSales = completedOrders.Sum(o => o.Total);
-                var ordersCount = shiftOrders.Count;
-
-                result.Add(new
-                {
-                    shift.Id,
-                    cashierName = shift.User != null ? shift.User.UserName : null,
-                    startTime = shift.StartTime.ToString("hh:mm tt"),
-                    openingCash = shift.OpeningCash,
-                    totalSales,
-                    ordersCount,
-                    durationMinutes = (int)(DateTime.Now - shift.StartTime).TotalMinutes
-                });
-            }
-
-            return Json(new { shifts = result });
+            return Json(new { shifts });
         }
 
         [HttpPost]
         public async Task<IActionResult> UpdateTableStatus([FromBody] UpdateTableStatusRequest req)
         {
             var table = await _context.DiningTables.FindAsync(req.TableId);
-
-            if (table == null)
-                return Json(new { success = false, message = "Table not found" });
-
+            if (table == null) return Json(new { success = false, message = "Table not found" });
             if (Enum.TryParse<TableStatus>(req.Status, out var status))
             {
                 table.Status = status;
                 await _context.SaveChangesAsync();
-
                 return Json(new { success = true });
             }
-
             return Json(new { success = false, message = "Invalid status" });
         }
 
@@ -618,68 +551,70 @@ namespace RestaurantERP.Controllers
             var from = DateTime.Today.AddDays(-days);
             var previousFrom = from.AddDays(-days);
 
+            var completedStatuses = new[] {
+                OrderStatus.Completed,
+                OrderStatus.Refunded,
+                OrderStatus.PartialRefund
+            };
+
             var completedOrders = await _context.Orders
-                .Where(o => o.Status == OrderStatus.Completed && o.CreatedAt.Date >= from)
+                .Where(o => completedStatuses.Contains(o.Status) && o.CreatedAt.Date >= from)
                 .ToListAsync();
 
             var previousOrders = await _context.Orders
-                .Where(o =>
-                    o.Status == OrderStatus.Completed &&
-                    o.CreatedAt.Date >= previousFrom &&
-                    o.CreatedAt.Date < from)
+                .Where(o => completedStatuses.Contains(o.Status) && o.CreatedAt.Date >= previousFrom && o.CreatedAt.Date < from)
                 .ToListAsync();
 
-            var totalRevenue = completedOrders.Sum(o => o.Total);
-            var prevRevenue = previousOrders.Sum(o => o.Total);
+            // Subtract refunds from revenue figures
+            var periodRefunds = await _context.Refunds
+                .Where(r => r.CreatedAt.Date >= from && r.Status == RefundStatus.Completed)
+                .ToListAsync();
 
-            var revenueGrowth = prevRevenue > 0
-                ? ((totalRevenue - prevRevenue) / prevRevenue * 100)
-                : 0;
+            var prevPeriodRefunds = await _context.Refunds
+                .Where(r => r.CreatedAt.Date >= previousFrom && r.CreatedAt.Date < from && r.Status == RefundStatus.Completed)
+                .ToListAsync();
+
+            var grossRevenue = completedOrders.Sum(o => o.Total);
+            var refundedAmount = periodRefunds.Sum(r => r.RefundTotal);
+            var totalRevenue = Math.Max(0, grossRevenue - refundedAmount);
+
+            var prevGross = previousOrders.Sum(o => o.Total);
+            var prevRefunded = prevPeriodRefunds.Sum(r => r.RefundTotal);
+            var prevRevenue = Math.Max(0, prevGross - prevRefunded);
+
+            var revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100) : 0;
+
+            // Daily sales with refunds subtracted per day
+            var refundByDay = periodRefunds
+                .GroupBy(r => r.CreatedAt.Date)
+                .ToDictionary(g => g.Key, g => g.Sum(r => r.RefundTotal));
 
             var dailySales = completedOrders
                 .GroupBy(o => o.CreatedAt.Date)
-                .Select(g => new
-                {
+                .Select(g => new {
                     date = g.Key.ToString("MM/dd"),
-                    revenue = g.Sum(o => o.Total),
+                    revenue = Math.Max(0, g.Sum(o => o.Total) - refundByDay.GetValueOrDefault(g.Key, 0)),
                     orders = g.Count()
                 })
                 .OrderBy(x => x.date)
                 .ToList();
 
-            var reportItems = await _context.OrderItems
-                .Include(oi => oi.Order)
+            var topProducts = await _context.OrderItems
                 .Include(oi => oi.Product)
-                    .ThenInclude(p => p!.Category)
-                .Where(oi =>
-                    oi.Order != null &&
-                    oi.Order.Status == OrderStatus.Completed &&
-                    oi.Order.CreatedAt.Date >= from)
-                .ToListAsync();
-
-            var topProducts = reportItems
-                .GroupBy(oi => oi.Product != null ? oi.Product.Name : "Unknown")
-                .Select(g => new
-                {
-                    productName = g.Key,
-                    totalQty = g.Sum(oi => oi.Quantity),
-                    totalRevenue = g.Sum(oi => oi.TotalPrice)
-                })
+                .Where(oi => completedStatuses.Contains(oi.Order!.Status) && oi.Order.CreatedAt.Date >= from)
+                .GroupBy(oi => oi.ProductName)
+                .Select(g => new { productName = g.Key, totalQty = g.Sum(oi => oi.Quantity), totalRevenue = g.Sum(oi => oi.TotalPrice) })
                 .OrderByDescending(x => x.totalQty)
                 .Take(10)
-                .ToList();
+                .ToListAsync();
 
-            var categoryRevenue = reportItems
-                .GroupBy(oi => oi.Product != null && oi.Product.Category != null
-                    ? oi.Product.Category.Name
-                    : "Other")
-                .Select(g => new
-                {
-                    categoryName = g.Key,
-                    revenue = g.Sum(oi => oi.TotalPrice)
-                })
+            var categoryRevenue = await _context.OrderItems
+                .Include(oi => oi.Product).ThenInclude(p => p!.Category)
+                .Where(oi => completedStatuses.Contains(oi.Order!.Status) && oi.Order.CreatedAt.Date >= from)
+                .GroupBy(oi => oi.Product != null && oi.Product.Category != null ? oi.Product.Category.Name : "Other")
+                .Select(g => new { categoryName = g.Key, revenue = g.Sum(oi => oi.TotalPrice) })
                 .OrderByDescending(x => x.revenue)
-                .ToList();
+                .ToListAsync();
 
             var paymentMethods = completedOrders
                 .GroupBy(o => o.PaymentMethod.ToString())
@@ -695,9 +630,8 @@ namespace RestaurantERP.Controllers
                 totalOrders = completedOrders.Count,
                 avgOrderValue = completedOrders.Count > 0 ? totalRevenue / completedOrders.Count : 0,
                 revenueGrowth,
-                ordersGrowth = previousOrders.Count > 0
-                    ? ((double)(completedOrders.Count - previousOrders.Count) / previousOrders.Count * 100)
-                    : 0,
+                ordersGrowth = previousOrders.Count > 0 ? ((double)(completedOrders.Count - previousOrders.Count) / previousOrders.Count * 100) : 0,
+                totalRefunded = refundedAmount,
                 dailySales,
                 topProducts,
                 categoryRevenue,
@@ -705,8 +639,27 @@ namespace RestaurantERP.Controllers
                 orderTypes
             });
         }
+
+    } // end AdminController
+
+    // ── UpdateUserBranches request ─────────────────────────────
+    public class EditUserRequest
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string FullNameAr { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
     }
 
+    public class UpdateUserBranchesRequest
+    {
+        public string UserId { get; set; } = string.Empty;
+        public List<int> BranchIds { get; set; } = new();
+        public int? PrimaryBranchId { get; set; }
+    }
+
+    // Request Models
     public class CreateUserRequest
     {
         public string Email { get; set; } = string.Empty;
@@ -714,6 +667,8 @@ namespace RestaurantERP.Controllers
         public string FullNameAr { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
+        public List<int> BranchIds { get; set; } = new();
+        public int? PrimaryBranchId { get; set; }
     }
 
     public class ResetPasswordRequest
@@ -733,19 +688,5 @@ namespace RestaurantERP.Controllers
         public int ProductId { get; set; }
         public int Quantity { get; set; }
         public string Reason { get; set; } = string.Empty;
-    }
-
-    public class SaveExpenseRequest
-    {
-        public string Title { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; }
-        public string Category { get; set; } = string.Empty;
-        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
-        public string? Description { get; set; }
-    }
-    public class ToggleUserRequest
-    {
-        public string UserId { get; set; } = string.Empty;
     }
 }

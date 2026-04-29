@@ -288,50 +288,22 @@ function filterProducts(search) {
     renderProducts(filteredProducts);
 }
 
-function getProductImage(p) {
-    const img =
-        p.imageUrl ||
-        p.ImageUrl ||
-        p.imageURL ||
-        p.image ||
-        p.photoUrl ||
-        '';
-
-    if (!img) return '/images/no-image.png';
-
-    if (img.startsWith('/')) return img;
-
-    return '/' + img;
-}
-
 function renderProducts(products) {
     const grid = document.getElementById('productsGrid');
-
-    console.log('PRODUCTS FROM API:', products);
-
     if (!products.length) {
         grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
             <i class="fas fa-search fa-2x" style="margin-bottom:12px;display:block"></i>No products found</div>`;
         return;
     }
-
     grid.innerHTML = products.map(p => {
         const outOfStock = p.trackStock && p.stockQuantity <= 0;
-        const imgUrl = getProductImage(p);
-
         return `
-        <div class="product-card ${outOfStock ? 'out-of-stock' : ''}" 
-             onclick="${outOfStock ? '' : `addToCart(${p.id})`}">
-
-            <img src="${imgUrl}"
-                 style="width:85px;height:85px;object-fit:cover;border-radius:12px;margin-bottom:10px;background:#eee"
-                 onerror="this.onerror=null;this.src='/images/no-image.png';" />
-
+        <div class="product-card ${outOfStock ? 'out-of-stock' : ''}" onclick="${outOfStock ? '' : `addToCart(${p.id})`}">
+            <div class="product-icon" style="color:${p.categoryColor}">${p.categoryIcon ? `<i class="fas ${p.categoryIcon}"></i>` : '🍽'}</div>
             <div class="product-name">${p.name}</div>
             <div class="product-name-ar">${p.nameAr || ''}</div>
-            <div class="product-price">${Number(p.price).toFixed(2)} EGP</div>
-
-            ${outOfStock ? `<div style="font-size:10px;color:var(--danger);margin-top:4px">Out of stock</div>` : ''}
+            <div class="product-price">${p.price.toFixed(2)} EGP</div>
+            ${outOfStock ? `<div style="font-size:10px;color:var(--danger);margin-top:4px" data-t="outOfStock">Out of stock</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -509,7 +481,7 @@ async function printLastOrder() {
     try {
         const data = await API.get(`/Waiter/GetOrderForPrint?orderId=${lastOrderId}`);
         if (data.success) {
-            const o = data.order;
+            const o = data;
             const itemsHtml = (o.items||[]).map(i =>
                 `<tr><td>${i.productName}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${(i.unitPrice*i.quantity).toFixed(2)}</td></tr>`
             ).join('');
