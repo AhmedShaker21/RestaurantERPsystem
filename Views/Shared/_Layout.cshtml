@@ -6,7 +6,7 @@
     <meta name="__RequestVerificationToken" content="@Antiforgery.GetTokens(Context).RequestToken">
     <title>@(ViewBag.Title ?? "نادي مصنع الطائرات - ERP")</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="~/css/main.css" asp-append-version="true">
     @RenderSection("HeadStyles", required: false)
@@ -21,68 +21,62 @@
                 <div class="sidebar-brand">
                     <div class="logo-icon">✈️</div>
                     <div class="brand-text">
-                        <div class="brand-name" data-lang="ar">نادي مصنع الطائرات</div>
-                        <div class="brand-name" data-lang="en" style="display:none">Aircraft Factory Club</div>
-                        <div class="brand-sub">ERP System</div>
+                        <div class="brand-name">نادي مصنع الطائرات</div>
+                        <div class="brand-sub">نظام إدارة المطعم</div>
                     </div>
                 </div>
 
                 <nav class="sidebar-nav">
                     @if (User.IsInRole("Admin"))
                     {
-                        <div class="sidebar-section-title" data-lang="ar">الرئيسية</div>
-                        <div class="sidebar-section-title" data-lang="en" style="display:none">MAIN</div>
-                        <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
-                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
-                    
-                        <div class="sidebar-section-title" data-lang="ar">إدارة المنتجات</div>
-                        <div class="sidebar-section-title" data-lang="en" style="display:none">PRODUCTS</div>
-                        <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span data-t="products">المنتجات</span></a>
-                        <a class="sidebar-link" href="/Admin/Categories"><span class="nav-icon">📂</span><span data-t="categories">الفئات</span></a>
-                        <a class="sidebar-link" href="/Admin/Inventory"><span class="nav-icon">📦</span><span data-t="inventory">المخزون</span></a>
-                    
-                        <div class="sidebar-section-title" data-lang="ar">العمليات</div>
-                        <div class="sidebar-section-title" data-lang="en" style="display:none">OPERATIONS</div>
-                        <a class="sidebar-link" href="/Admin/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
-                        <a class="sidebar-link" href="/Admin/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
-                        <a class="sidebar-link" href="/Admin/Expenses"><span class="nav-icon">💸</span><span data-t="expenses">المصروفات</span></a>
-                        <a class="sidebar-link" href="/Admin/Shifts"><span class="nav-icon">🕐</span><span data-t="shift-management">الورديات</span></a>
-                    
-                        <div class="sidebar-section-title" data-lang="ar">التحليلات</div>
-                        <div class="sidebar-section-title" data-lang="en" style="display:none">ANALYTICS</div>
-                        <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
-                    
-                        <div class="sidebar-section-title" data-lang="ar">النظام</div>
-                        <div class="sidebar-section-title" data-lang="en" style="display:none">SYSTEM</div>
-                        <a class="sidebar-link" href="/Admin/Users"><span class="nav-icon">👥</span><span data-t="users">المستخدمون</span></a>
-                        <a class="sidebar-link" href="/Admin/Settings"><span class="nav-icon">⚙️</span><span data-t="settings">الإعدادات</span></a>
+                        <div class="sidebar-section-title">الرئيسية</div>
+                        <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span>لوحة التحكم</span></a>
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span>الكاشير</span></a>
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span>المطبخ</span></a>
+
+                        <div class="sidebar-section-title">إدارة المنتجات</div>
+                        <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span>المنتجات</span></a>
+                        <a class="sidebar-link" href="/Admin/Categories"><span class="nav-icon">📂</span><span>الفئات</span></a>
+                        <a class="sidebar-link" href="/Admin/Inventory"><span class="nav-icon">📦</span><span>المخزون</span></a>
+
+                        <div class="sidebar-section-title">العمليات</div>
+                        <a class="sidebar-link" href="/Admin/Orders"><span class="nav-icon">📋</span><span>الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span>المرتجعات</span></a>
+                        <a class="sidebar-link" href="/Admin/Tables"><span class="nav-icon">🪑</span><span>الطاولات</span></a>
+                        <a class="sidebar-link" href="/Admin/Expenses"><span class="nav-icon">💸</span><span>المصروفات</span></a>
+                        <a class="sidebar-link" href="/Admin/Shifts"><span class="nav-icon">🕐</span><span>الورديات</span></a>
+
+                        <div class="sidebar-section-title">التحليلات</div>
+                        <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span>التقارير</span></a>
+
+                        <div class="sidebar-section-title">النظام</div>
+                        <a class="sidebar-link" href="/Admin/Users"><span class="nav-icon">👥</span><span>المستخدمون</span></a>
+                        <a class="sidebar-link" href="/Admin/Settings"><span class="nav-icon">⚙️</span><span>الإعدادات</span></a>
                     }
                     else if (User.IsInRole("Manager"))
                     {
-                        <a class="sidebar-link" href="/Manager/Index"><span class="nav-icon">📊</span><span data-t="dashboard">لوحة التحكم</span></a>
-                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
-                        <a class="sidebar-link" href="/Manager/Orders"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
-                        <a class="sidebar-link" href="/Manager/Reports"><span class="nav-icon">📈</span><span data-t="reports">التقارير</span></a>
+                        <a class="sidebar-link" href="/Manager/Index"><span class="nav-icon">📊</span><span>لوحة التحكم</span></a>
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span>الكاشير</span></a>
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span>المطبخ</span></a>
+                        <a class="sidebar-link" href="/Manager/Orders"><span class="nav-icon">📋</span><span>الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span>المرتجعات</span></a>
+                        <a class="sidebar-link" href="/Manager/Reports"><span class="nav-icon">📈</span><span>التقارير</span></a>
                     }
                     else if (User.IsInRole("Cashier"))
                     {
-                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span data-t="cashier">الكاشير</span></a>
-                        <a class="sidebar-link" href="/Cashier/History"><span class="nav-icon">📋</span><span data-t="orders">الطلبات</span></a>
-                        <a class="sidebar-link" href="/Refund/Index"><span class="nav-icon">🔄</span><span data-t="refunds">المرتجعات</span></a>
+                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span>الكاشير</span></a>
+                        <a class="sidebar-link" href="/Cashier/History"><span class="nav-icon">📋</span><span>الطلبات</span></a>
+                        <a class="sidebar-link" href="/Refund/Index"><span class="nav-icon">🔄</span><span>المرتجعات</span></a>
                     }
                     else if (User.IsInRole("Kitchen"))
                     {
-                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span data-t="kitchen">المطبخ</span></a>
+                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span>المطبخ</span></a>
                     }
                     else if (User.IsInRole("Waiter"))
                     {
-                        <a class="sidebar-link" href="/Waiter/Tables"><span class="nav-icon">🪑</span><span data-t="tables">الطاولات</span></a>
-                        <a class="sidebar-link" href="/Waiter/Index"><span class="nav-icon">📝</span><span data-t="newOrder">طلب جديد</span></a>
-                        <a class="sidebar-link" href="/Waiter/MyOrders"><span class="nav-icon">📋</span><span data-t="myOrders">طلباتي</span></a>
+                        <a class="sidebar-link" href="/Waiter/Tables"><span class="nav-icon">🪑</span><span>الطاولات</span></a>
+                        <a class="sidebar-link" href="/Waiter/Index"><span class="nav-icon">📝</span><span>طلب جديد</span></a>
+                        <a class="sidebar-link" href="/Waiter/MyOrders"><span class="nav-icon">📋</span><span>طلباتي</span></a>
                     }
                 </nav>
 
@@ -94,27 +88,27 @@
                             <div class="user-role">
                                 @if (User.IsInRole("Admin"))
                                 {
-                                    <span>Admin</span>
+                                    <span>مدير النظام</span>
                                 }
                                 else if (User.IsInRole("Manager"))
                                 {
 
-                                    <span>Manager</span>
+                                    <span>مدير</span>
                                 }
                                 else if (User.IsInRole("Cashier"))
                                 {
 
-                                    <span>Cashier</span>
+                                    <span>كاشير</span>
                                 }
                                 else if (User.IsInRole("Kitchen"))
                                 {
 
-                                    <span>Kitchen</span>
+                                    <span>مطبخ</span>
                                 }
                                 else if (User.IsInRole("Waiter"))
                                 {
 
-                                    <span>Waiter</span>
+                                    <span>نادل</span>
                                 }
                             </div>
                         </div>
@@ -122,7 +116,7 @@
                     <form method="post" action="/Account/Logout" style="margin-top:8px">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-outline w-full btn-sm">
-                            <span>🚪</span> <span data-t="logout">تسجيل الخروج</span>
+                            <span>🚪</span> <span>تسجيل الخروج</span>
                         </button>
                     </form>
                 </div>
@@ -131,16 +125,14 @@
 
         <!-- MAIN -->
         <div class="main-content">
-
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <!-- TOPBAR -->
                 <header class="topbar">
-                    <button class="topbar-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+                    <button class="topbar-btn" onclick="toggleSidebar()" title="القائمة">☰</button>
                     <h1 class="topbar-title">@(ViewBag.PageTitle ?? "نادي مصنع الطائرات")</h1>
                     <div class="topbar-actions">
-                        <button class="topbar-btn" id="langToggle" title="Language" style="font-size:12px;font-weight:700;width:48px;">عربي</button>
-                        <button class="topbar-btn" id="themeToggle" title="Theme">🌙</button>
+                        <button class="topbar-btn" id="themeToggle" title="تبديل المظهر">🌙</button>
                     </div>
                 </header>
             }

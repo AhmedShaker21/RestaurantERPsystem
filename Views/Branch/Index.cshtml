@@ -1,29 +1,27 @@
 ﻿@model IEnumerable<RestaurantERP.Models.Branch>
 @{
-    ViewData["Title"] = "Branch Management";
+    ViewData["Title"] = "إدارة الفروع";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <div class="page-header">
     <div>
-        <h1 class="page-title"><i class="fas fa-code-branch me-2" style="color:var(--primary)"></i>Branch Management</h1>
-        <p class="page-subtitle">@Model.Count() branches · <span style="color:#22c55e">@Model.Count(b => b.IsActive) active</span></p>
+        <h1 class="page-title"><i class="fas fa-code-branch me-2" style="color:var(--primary)"></i>إدارة الفروع</h1>
+        <p class="page-subtitle">@Model.Count() فرع · <span style="color:#22c55e">@Model.Count(b => b.IsActive) نشط</span></p>
     </div>
     <button class="btn btn-primary" onclick="Modal.open('addBranchModal')">
-        <i class="fas fa-plus me-2"></i>Add Branch
+        <i class="fas fa-plus me-2"></i>إضافة فرع
     </button>
 </div>
 
-<!-- Branch Cards Grid -->
+<!-- بطاقات الفروع -->
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;margin-bottom:24px">
     @foreach (var branch in Model)
     {
         var staffCount = branch.UserBranches?.Count ?? 0;
         var orderCount = branch.Orders?.Count ?? 0;
         <div class="card" style="border-top:4px solid @branch.ColorHex;position:relative;overflow:hidden">
-            <!-- Background icon watermark -->
             <div style="position:absolute;right:-10px;top:-10px;font-size:80px;opacity:0.06;pointer-events:none;user-select:none">@branch.Icon</div>
-
             <div class="card-body" style="padding:22px">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
                     <div style="display:flex;align-items:center;gap:12px">
@@ -38,20 +36,20 @@
                     <div style="display:flex;gap:6px;align-items:center">
                         @if (branch.IsMainBranch)
                         {
-                            <span style="background:#2563a822;color:#2563a8;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700">MAIN</span>
+                            <span style="background:#2563a822;color:#2563a8;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700">رئيسي</span>
                         }
-                        <span class="badge @(branch.IsActive ? "badge-success" : "badge-danger")">@(branch.IsActive ? "Active" : "Inactive")</span>
+                        <span class="badge @(branch.IsActive ? "badge-success" : "badge-danger")">@(branch.IsActive ? "نشط" : "غير نشط")</span>
                     </div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
                     <div style="background:var(--bg-secondary);border-radius:8px;padding:10px;text-align:center">
                         <div style="font-size:20px;font-weight:800;color:@branch.ColorHex">@staffCount</div>
-                        <div style="font-size:11px;color:var(--text-muted)">Staff</div>
+                        <div style="font-size:11px;color:var(--text-muted)">موظف</div>
                     </div>
                     <div style="background:var(--bg-secondary);border-radius:8px;padding:10px;text-align:center">
                         <div style="font-size:20px;font-weight:800;color:@branch.ColorHex">@orderCount</div>
-                        <div style="font-size:11px;color:var(--text-muted)">Orders</div>
+                        <div style="font-size:11px;color:var(--text-muted)">طلب</div>
                     </div>
                 </div>
 
@@ -70,13 +68,13 @@
 
                 <div style="display:flex;gap:8px">
                     <button class="btn btn-sm btn-outline" style="flex:1" onclick="editBranch(@branch.Id)">
-                        <i class="fas fa-edit me-1"></i>Edit
+                        <i class="fas fa-edit me-1"></i>تعديل
                     </button>
                     <button class="btn btn-sm btn-outline" style="flex:1" onclick="manageStaff(@branch.Id, '@branch.Name')">
-                        <i class="fas fa-users me-1"></i>Staff
+                        <i class="fas fa-users me-1"></i>الموظفون
                     </button>
                     <a href="/Branch/Analytics" class="btn btn-sm btn-outline" style="flex:1">
-                        <i class="fas fa-chart-bar me-1"></i>Stats
+                        <i class="fas fa-chart-bar me-1"></i>إحصاءات
                     </a>
                     @if (!branch.IsMainBranch)
                     {
@@ -90,39 +88,35 @@
     }
 </div>
 
-<!-- Add Branch Modal -->
+<!-- مودال إضافة فرع -->
 <div class="modal-overlay" id="addBranchModal">
     <div class="modal" style="max-width:560px">
         <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-plus me-2"></i>Add New Branch</h3>
+            <h3 class="modal-title"><i class="fas fa-plus me-2"></i>إضافة فرع جديد</h3>
             <button class="modal-close" onclick="Modal.close('addBranchModal')">&times;</button>
         </div>
         <div class="modal-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group" style="margin-bottom:14px">
+                <label class="form-label">اسم الفرع <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="bName" class="form-control" dir="rtl" placeholder="مثال: فرع مصر الجديدة">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div class="form-group">
-                    <label class="form-label">Name (English)</label>
-                    <input type="text" id="bName" class="form-control" placeholder="e.g. Heliopolis Branch">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Name (Arabic)</label>
-                    <input type="text" id="bNameAr" class="form-control" dir="rtl" placeholder="مثال: فرع مصر الجديدة">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Phone</label>
+                    <label class="form-label">رقم الهاتف</label>
                     <input type="text" id="bPhone" class="form-control" placeholder="02-XXXXXXXX">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Email</label>
+                    <label class="form-label">البريد الإلكتروني</label>
                     <input type="email" id="bEmail" class="form-control" placeholder="branch@restaurant.com">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <input type="text" id="bAddress" class="form-control" placeholder="Full address">
+            <div class="form-group" style="margin-bottom:14px">
+                <label class="form-label">العنوان</label>
+                <input type="text" id="bAddress" class="form-control" dir="rtl" placeholder="العنوان الكامل">
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div class="form-group">
-                    <label class="form-label">Color</label>
+                    <label class="form-label">اللون</label>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                         @foreach(var c in new[]{"#2563a8","#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#ec4899"})
                         {
@@ -132,7 +126,7 @@
                     <input type="hidden" id="bColor" value="#2563a8">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Icon (Emoji)</label>
+                    <label class="form-label">الأيقونة (رمز تعبيري)</label>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
                         @foreach(var ic in new[]{"🏢","🏪","🏬","🍽️","🌟","🏠","🎯","🚀"})
                         {
@@ -145,53 +139,49 @@
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                     <input type="checkbox" id="bIsMain" style="width:16px;height:16px">
-                    <span>Set as Main Branch</span>
+                    <span>تعيين كفرع رئيسي</span>
                 </label>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="Modal.close('addBranchModal')">Cancel</button>
+            <button class="btn btn-outline" onclick="Modal.close('addBranchModal')">إلغاء</button>
             <button class="btn btn-primary" onclick="saveBranch()">
-                <i class="fas fa-save me-2"></i>Create Branch
+                <i class="fas fa-save me-2"></i>إنشاء الفرع
             </button>
         </div>
     </div>
 </div>
 
-<!-- Edit Branch Modal -->
+<!-- مودال تعديل فرع -->
 <div class="modal-overlay" id="editBranchModal">
     <div class="modal" style="max-width:560px">
         <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Branch</h3>
+            <h3 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل الفرع</h3>
             <button class="modal-close" onclick="Modal.close('editBranchModal')">&times;</button>
         </div>
-        <div class="modal-body" id="editBranchBody">
+        <div class="modal-body">
             <input type="hidden" id="eBranchId">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group" style="margin-bottom:14px">
+                <label class="form-label">اسم الفرع</label>
+                <input type="text" id="eName" class="form-control" dir="rtl">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div class="form-group">
-                    <label class="form-label">Name (English)</label>
-                    <input type="text" id="eName" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Name (Arabic)</label>
-                    <input type="text" id="eNameAr" class="form-control" dir="rtl">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Phone</label>
+                    <label class="form-label">رقم الهاتف</label>
                     <input type="text" id="ePhone" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Email</label>
+                    <label class="form-label">البريد الإلكتروني</label>
                     <input type="email" id="eEmail" class="form-control">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <input type="text" id="eAddress" class="form-control">
+            <div class="form-group" style="margin-bottom:14px">
+                <label class="form-label">العنوان</label>
+                <input type="text" id="eAddress" class="form-control" dir="rtl">
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div class="form-group">
-                    <label class="form-label">Color</label>
+                    <label class="form-label">اللون</label>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         @foreach(var c in new[]{"#2563a8","#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#ec4899"})
                         {
@@ -201,7 +191,7 @@
                     <input type="hidden" id="eColor" value="#2563a8">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Icon</label>
+                    <label class="form-label">الأيقونة</label>
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         @foreach(var ic in new[]{"🏢","🏪","🏬","🍽️","🌟","🏠","🎯","🚀"})
                         {
@@ -214,22 +204,22 @@
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                     <input type="checkbox" id="eIsActive" style="width:16px;height:16px">
-                    <span>Active</span>
+                    <span>نشط</span>
                 </label>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="Modal.close('editBranchModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="updateBranch()"><i class="fas fa-save me-2"></i>Save Changes</button>
+            <button class="btn btn-outline" onclick="Modal.close('editBranchModal')">إلغاء</button>
+            <button class="btn btn-primary" onclick="updateBranch()"><i class="fas fa-save me-2"></i>حفظ التغييرات</button>
         </div>
     </div>
 </div>
 
-<!-- Staff Management Modal -->
+<!-- مودال إدارة الموظفين -->
 <div class="modal-overlay" id="staffModal">
     <div class="modal" style="max-width:580px">
         <div class="modal-header">
-            <h3 class="modal-title" id="staffModalTitle"><i class="fas fa-users me-2"></i>Staff Management</h3>
+            <h3 class="modal-title" id="staffModalTitle"><i class="fas fa-users me-2"></i>إدارة الموظفين</h3>
             <button class="modal-close" onclick="Modal.close('staffModal')">&times;</button>
         </div>
         <div class="modal-body" id="staffModalBody">
@@ -245,23 +235,22 @@ const branchData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.S
     b.ColorHex, b.Icon, b.IsActive, b.IsMainBranch
 })));
 
-// ── Color/Icon pickers ────────────────────────────────────────
 function selectBranchColor(c) {
     document.getElementById('bColor').value = c;
     document.querySelectorAll('.bcolor').forEach(el => el.style.border = el.style.background === c ? '3px solid var(--text-primary)' : '3px solid transparent');
 }
-function selectBranchIcon(ic)  { document.getElementById('bIcon').value = ic; }
-function selectEditColor(c)    {
+function selectBranchIcon(ic) { document.getElementById('bIcon').value = ic; }
+function selectEditColor(c) {
     document.getElementById('eColor').value = c;
     document.querySelectorAll('.ecolor').forEach(el => el.style.border = el.style.background === c ? '3px solid var(--text-primary)' : '3px solid transparent');
 }
-function selectEditIcon(ic)    { document.getElementById('eIcon').value = ic; }
+function selectEditIcon(ic) { document.getElementById('eIcon').value = ic; }
 
-// ── Save new branch ───────────────────────────────────────────
 async function saveBranch() {
+    const name = document.getElementById('bName').value.trim();
+    if (!name) { Toast.warning('اسم الفرع مطلوب'); return; }
     const payload = {
-        name: document.getElementById('bName').value,
-        nameAr: document.getElementById('bNameAr').value,
+        name, nameAr: name,
         phone: document.getElementById('bPhone').value,
         email: document.getElementById('bEmail').value,
         address: document.getElementById('bAddress').value,
@@ -270,35 +259,32 @@ async function saveBranch() {
         isMainBranch: document.getElementById('bIsMain').checked,
         isActive: true
     };
-    if (!payload.name) { Toast.warning('Branch name is required'); return; }
     try {
         const res = await API.post('/Branch/Create', payload);
-        if (res.success) { Toast.success(res.message || 'Branch created!'); setTimeout(() => location.reload(), 700); }
-        else Toast.error(res.message || 'Failed');
-    } catch(e) { Toast.error('Error creating branch'); }
+        if (res.success) { Toast.success(res.message || 'تم إنشاء الفرع!'); setTimeout(() => location.reload(), 700); }
+        else Toast.error(res.message || 'فشل الإنشاء');
+    } catch(e) { Toast.error('حدث خطأ أثناء الإنشاء'); }
 }
 
-// ── Edit branch ───────────────────────────────────────────────
 function editBranch(id) {
     const b = branchData.find(x => x.id === id);
     if (!b) return;
     document.getElementById('eBranchId').value = b.id;
-    document.getElementById('eName').value    = b.name;
-    document.getElementById('eNameAr').value  = b.nameAr;
-    document.getElementById('ePhone').value   = b.phone || '';
-    document.getElementById('eEmail').value   = b.email || '';
-    document.getElementById('eAddress').value = b.address || '';
-    document.getElementById('eColor').value   = b.colorHex;
-    document.getElementById('eIcon').value    = b.icon || '🏢';
+    document.getElementById('eName').value     = b.nameAr || b.name;
+    document.getElementById('ePhone').value    = b.phone   || '';
+    document.getElementById('eEmail').value    = b.email   || '';
+    document.getElementById('eAddress').value  = b.address || '';
+    document.getElementById('eColor').value    = b.colorHex;
+    document.getElementById('eIcon').value     = b.icon    || '🏢';
     document.getElementById('eIsActive').checked = b.isActive;
     Modal.open('editBranchModal');
 }
 
 async function updateBranch() {
+    const name = document.getElementById('eName').value.trim();
     const payload = {
         id:       parseInt(document.getElementById('eBranchId').value),
-        name:     document.getElementById('eName').value,
-        nameAr:   document.getElementById('eNameAr').value,
+        name, nameAr: name,
         phone:    document.getElementById('ePhone').value,
         email:    document.getElementById('eEmail').value,
         address:  document.getElementById('eAddress').value,
@@ -308,69 +294,67 @@ async function updateBranch() {
     };
     try {
         const res = await API.post('/Branch/Edit', payload);
-        if (res.success) { Toast.success('Branch updated!'); setTimeout(() => location.reload(), 600); }
-        else Toast.error(res.message || 'Failed');
-    } catch(e) { Toast.error('Error'); }
+        if (res.success) { Toast.success('تم تحديث الفرع!'); setTimeout(() => location.reload(), 600); }
+        else Toast.error(res.message || 'فشل التحديث');
+    } catch(e) { Toast.error('حدث خطأ'); }
 }
 
-// ── Toggle active ─────────────────────────────────────────────
 async function toggleBranch(id) {
-    if (!confirm('Toggle this branch status?')) return;
+    if (!confirm('هل تريد تغيير حالة هذا الفرع؟')) return;
     const res = await API.post('/Branch/Toggle', { id });
-    if (res.success) { Toast.success('Status updated'); setTimeout(() => location.reload(), 600); }
-    else Toast.error(res.message || 'Failed');
+    if (res.success) { Toast.success('تم تحديث الحالة'); setTimeout(() => location.reload(), 600); }
+    else Toast.error(res.message || 'فشل');
 }
 
-// ── Staff management ──────────────────────────────────────────
 async function manageStaff(branchId, branchName) {
-    document.getElementById('staffModalTitle').innerHTML = `<i class="fas fa-users me-2"></i>Staff — ${branchName}`;
+    document.getElementById('staffModalTitle').innerHTML = `<i class="fas fa-users me-2"></i>الموظفون — ${branchName}`;
     document.getElementById('staffModalBody').innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary)"></i></div>';
     Modal.open('staffModal');
     try {
         const data = await API.get(`/Branch/GetBranchUsers?branchId=${branchId}`);
         document.getElementById('staffModalBody').innerHTML = `
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:10px">Assigned Staff (${data.assigned.length})</h4>
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:10px">الموظفون المعينون (${data.assigned.length})</h4>
             <div style="margin-bottom:16px">
                 ${data.assigned.length ? data.assigned.map(u => `
                     <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px">
                         <div style="width:32px;height:32px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">${(u.fullName||u.userName||'?')[0].toUpperCase()}</div>
                         <div style="flex:1">
                             <div style="font-size:13px;font-weight:600">${u.fullName || u.userName}</div>
-                            <div style="font-size:11px;color:var(--text-muted)">${u.userName}${u.isPrimary ? ' <span style="color:#22c55e;font-size:10px">● Primary</span>' : ''}</div>
+                            <div style="font-size:11px;color:var(--text-muted)">${u.userName}${u.isPrimary ? ' <span style="color:#22c55e;font-size:10px">● أساسي</span>' : ''}</div>
                         </div>
-                        <button class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="removeStaff('${u.userId}', ${branchId}, '${branchName}')">
+                        <button class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="removeStaff('${u.userId}',${branchId},'${branchName}')">
                             <i class="fas fa-times"></i>
                         </button>
-                    </div>`).join('') : '<p style="color:var(--text-muted);text-align:center;padding:10px">No staff assigned</p>'}
+                    </div>`).join('') : '<p style="color:var(--text-muted);text-align:center;padding:10px">لا يوجد موظفون معينون</p>'}
             </div>
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:10px">Add Staff</h4>
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:10px">إضافة موظف</h4>
             <div style="display:flex;gap:8px">
                 <select id="addUserSelect" class="form-control">
-                    <option value="">Select user...</option>
-                    ${data.unassigned.map(u => `<option value="${u.id}">${u.fullName || u.userName} (${u.userName})</option>`).join('')}
+                    <option value="">اختر مستخدماً...</option>
+                    ${data.unassigned.map(u => `<option value="${u.id}">${u.fullName || u.userName}</option>`).join('')}
                 </select>
                 <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px">
-                    <input type="checkbox" id="isPrimaryChk"> Primary
+                    <input type="checkbox" id="isPrimaryChk"> أساسي
                 </label>
-                <button class="btn btn-primary" onclick="addStaff(${branchId}, '${branchName}')">Add</button>
+                <button class="btn btn-primary" onclick="addStaff(${branchId},'${branchName}')">إضافة</button>
             </div>`;
-    } catch(e) { Toast.error('Failed to load staff'); }
+    } catch(e) { Toast.error('فشل تحميل الموظفين'); }
 }
 
 async function addStaff(branchId, branchName) {
-    const userId = document.getElementById('addUserSelect').value;
+    const userId    = document.getElementById('addUserSelect').value;
     const isPrimary = document.getElementById('isPrimaryChk').checked;
-    if (!userId) { Toast.warning('Select a user'); return; }
+    if (!userId) { Toast.warning('اختر مستخدماً'); return; }
     const res = await API.post('/Branch/AssignUser', { userId, branchId, isPrimary });
-    if (res.success) { Toast.success('Staff added'); await manageStaff(branchId, branchName); }
-    else Toast.error(res.message || 'Failed');
+    if (res.success) { Toast.success('تم إضافة الموظف'); await manageStaff(branchId, branchName); }
+    else Toast.error(res.message || 'فشل');
 }
 
 async function removeStaff(userId, branchId, branchName) {
-    if (!confirm('Remove this user from the branch?')) return;
+    if (!confirm('هل تريد إزالة هذا الموظف من الفرع؟')) return;
     const res = await API.post('/Branch/RemoveUser', { userId, branchId });
-    if (res.success) { Toast.success('Removed'); await manageStaff(branchId, branchName); }
-    else Toast.error('Failed');
+    if (res.success) { Toast.success('تم الإزالة'); await manageStaff(branchId, branchName); }
+    else Toast.error('فشل');
 }
 </script>
 }

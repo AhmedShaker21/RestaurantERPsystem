@@ -434,8 +434,15 @@ function updatePlaceOrderBtn() {
 
 // ── Place Order ───────────────────────────────────────────────────
 async function placeOrder() {
-    if (!cart.length) { Toast.warning('Cart is empty'); return; }
-    if (orderType === 'DineIn' && !selectedTableId) { Toast.warning('Please select a table'); return; }
+    if (!cart.length) {
+        Toast.warning('Cart is empty');
+        return;
+    }
+
+    if (orderType === 'DineIn' && !selectedTableId) {
+        Toast.warning('Please select a table');
+        return;
+    }
 
     const btn = document.getElementById('placeOrderBtn');
     btn.disabled = true;
@@ -443,37 +450,95 @@ async function placeOrder() {
 
     const discount = parseFloat(document.getElementById('discountInput')?.value) || 0;
     const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    const taxable = subtotal - discount;
+    const taxable = Math.max(subtotal - discount, 0);
     const total = taxable + taxable * TAX_RATE;
 
     const payload = {
-        items: cart.map(i => ({ productId: i.productId, quantity: i.quantity, notes: i.notes || null })),
+        items: cart.map(i => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            notes: i.notes || null
+        })),
+
         tableId: orderType === 'DineIn' ? selectedTableId : null,
-        orderType: orderType === 'DineIn' ? 0 : orderType === 'Takeaway' ? 1 : 2,
+
+        orderType: orderType === 'DineIn'
+            ? 0
+            : orderType === 'Takeaway'
+                ? 1
+                : 2,
+
         customerName: document.getElementById('customerName')?.value || null,
         customerPhone: document.getElementById('customerPhone')?.value || null,
         notes: document.getElementById('orderNotes')?.value || null,
+
         discountAmount: discount,
         amountPaid: total,
-        paymentMethod: paymentMethod === 'Cash' ? 0 : paymentMethod === 'Card' ? 1 : 2
+
+        paymentMethod: paymentMethod === 'Cash'
+            ? 0
+            : paymentMethod === 'Card'
+                ? 1
+                : 2
     };
 
+    console.log('ORDER PAYLOAD:', payload);
+
     try {
-        const res = await API.post('/Waiter/PlaceOrder', payload);
+        const response = await fetch('/Waiter/PlaceOrder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const text = await response.text();
+
+        console.log('RAW SERVER RESPONSE:', text);
+
+        let res;
+
+        try {
+            res = JSON.parse(text);
+        } catch (jsonError) {
+            console.error('Server did not return JSON:', text);
+            Toast.error('Server returned an error page. Check Console for details.');
+            return;
+        }
+
+        console.log('ORDER RESPONSE:', res);
+
+        if (!response.ok) {
+            Toast.error(res.message || res.details || 'Server error while placing order');
+            return;
+        }
+
         if (res.success) {
             lastOrderId = res.orderId;
-            document.getElementById('successOrderNum').textContent = '#' + res.orderNumber;
+
+            document.getElementById('successOrderNum').textContent =
+                '#' + (res.orderNumber || res.orderId);
+
+            const totalValue = Number(res.total || total || 0);
+
             document.getElementById('successInfo').textContent =
-                (orderType === 'DineIn' ? `Table ${selectedTableNum}  ·  ` : '') + res.total.toFixed(2) + ' EGP';
+                (orderType === 'DineIn' ? `Table ${selectedTableNum}  ·  ` : '')
+                + totalValue.toFixed(2) + ' EGP';
+
             Modal.open('successModal');
             clearCart();
         } else {
-            Toast.error(res.message || 'Failed to place order');
+            Toast.error(res.message || res.details || 'Failed to place order');
         }
-    } catch(e) { Toast.error('Error placing order'); }
 
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i><span data-t="placeOrder">Place Order</span>';
+    } catch (e) {
+        console.error('FULL ERROR:', e);
+        Toast.error(e.message || 'Error placing order');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i><span data-t="placeOrder">Place Order</span>';
+    }
 }
 
 async function printLastOrder() {

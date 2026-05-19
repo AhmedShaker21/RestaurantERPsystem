@@ -17,14 +17,14 @@
     </div>
 </div>
 
-@if (activeShifts.Any())
+@if (closedShifts.Any())
 {
     <div style="margin-bottom:24px">
         <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;color:var(--primary)" data-t="activeShifts">
             Active Shifts
         </h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
-            @foreach (var shift in activeShifts)
+            @foreach (var shift in closedShifts)
             {
                 var duration = DateTime.Now - shift.StartTime;
                 <div class="card" style="border-left:4px solid #4CAF50">

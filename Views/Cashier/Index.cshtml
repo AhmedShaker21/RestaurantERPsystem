@@ -4,289 +4,109 @@
     Layout = "_Layout";
 
     var settings = ViewBag.Settings as Dictionary<string, string> ?? new();
-    var tables   = ViewBag.Tables as List<RestaurantERP.Models.DiningTable> ?? new();
+    var tables   = ViewBag.Tables  as List<RestaurantERP.Models.DiningTable> ?? new();
+    var branch   = ViewBag.Branch  as RestaurantERP.Models.Branch;
 
     var orgName = settings.GetValueOrDefault("OrgName",  "نادي مصنع الطائرات");
     var taxRate = settings.GetValueOrDefault("TaxRate",  "14");
 }
 
 <style>
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    SHIFT LAMP
-═══════════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════ */
 .shift-lamp-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: rgba(255,255,255,0.12);
-    border-radius: 999px;
-    padding: 4px 12px 4px 8px;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.2s;
+    display:inline-flex; align-items:center; gap:7px;
+    background:rgba(255,255,255,.12); border-radius:999px;
+    padding:4px 12px 4px 8px; cursor:pointer; user-select:none; transition:background .2s;
 }
-.shift-lamp-wrap:hover { background: rgba(255,255,255,0.22); }
-
-.shift-lamp {
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    transition: background 0.4s, box-shadow 0.4s;
-}
-.shift-lamp.on {
-    background: #4ade80;
-    box-shadow: 0 0 0 3px rgba(74,222,128,.35), 0 0 10px rgba(74,222,128,.7);
-    animation: lamp-pulse 2s infinite;
-}
-.shift-lamp.off {
-    background: #f87171;
-    box-shadow: 0 0 0 3px rgba(248,113,113,.30);
-}
-.shift-lamp.loading {
-    background: #fbbf24;
-    box-shadow: 0 0 0 3px rgba(251,191,36,.35);
-    animation: lamp-blink 0.6s infinite;
-}
-@@keyframes lamp-pulse {
-    0%,100% { box-shadow: 0 0 0 3px rgba(74,222,128,.35), 0 0 10px rgba(74,222,128,.7); }
-    50%      { box-shadow: 0 0 0 5px rgba(74,222,128,.20), 0 0 18px rgba(74,222,128,.9); }
-}
-@@keyframes lamp-blink {
-    0%,100% { opacity:1; }
-    50%     { opacity:0.4; }
-}
+.shift-lamp-wrap:hover { background:rgba(255,255,255,.22); }
+.shift-lamp { width:11px; height:11px; border-radius:50%; flex-shrink:0; transition:background .4s, box-shadow .4s; }
+.shift-lamp.on    { background:#4ade80; box-shadow:0 0 0 3px rgba(74,222,128,.35),0 0 10px rgba(74,222,128,.7); animation:lamp-pulse 2s infinite; }
+.shift-lamp.off   { background:#f87171; box-shadow:0 0 0 3px rgba(248,113,113,.30); }
+.shift-lamp.loading { background:#fbbf24; box-shadow:0 0 0 3px rgba(251,191,36,.35); animation:lamp-blink .6s infinite; }
 .shift-lamp-label { font-size:11px; font-weight:700; color:#fff; opacity:.9; }
+@@keyframes lamp-pulse { 0%,100%{ box-shadow:0 0 0 3px rgba(74,222,128,.35),0 0 10px rgba(74,222,128,.7); } 50%{ box-shadow:0 0 0 5px rgba(74,222,128,.20),0 0 18px rgba(74,222,128,.9); } }
+@@keyframes lamp-blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    SHIFT ACTION BUTTONS
-═══════════════════════════════════════════════════════════════ */
-.shift-action-btn {
-    border: none;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: .2s;
-    white-space: nowrap;
-}
+═══════════════════════════════════════════════════════ */
+.shift-action-btn { border:none; border-radius:8px; padding:6px 12px; font-size:11px; font-weight:800; cursor:pointer; transition:.2s; white-space:nowrap; }
 .shift-action-btn:disabled { opacity:.55; cursor:not-allowed; }
 .shift-action-btn.open-btn  { background:#22c55e; color:#fff; }
 .shift-action-btn.open-btn:hover:not(:disabled)  { background:#16a34a; }
 .shift-action-btn.close-btn { background:#ef4444; color:#fff; }
 .shift-action-btn.close-btn:hover:not(:disabled) { background:#dc2626; }
 
-/* ═══════════════════════════════════════════════════════════════
-   BARCODE SCANNER BUTTONS
-═══════════════════════════════════════════════════════════════ */
-.barcode-btn {
-    border: none;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: .2s;
-    white-space: nowrap;
-    background: rgba(255,255,255,.18);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.barcode-btn:hover  { background: rgba(255,255,255,.28); }
-.barcode-btn.active { background: #f59e0b; color: #000; }
-
-/* Floating indicator when physical scanner is active */
-.barcode-indicator {
-    position: fixed;
-    top: 70px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1200;
-    background: #1e293b;
-    color: #fff;
-    border-radius: 12px;
-    padding: 8px 18px;
-    font-size: 13px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,.3);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .25s;
-}
+/* ═══════════════════════════════════════════════════════
+   BARCODE BUTTONS
+═══════════════════════════════════════════════════════ */
+.barcode-btn { border:none; border-radius:8px; padding:6px 10px; font-size:11px; font-weight:800; cursor:pointer; transition:.2s; white-space:nowrap; background:rgba(255,255,255,.18); color:#fff; display:flex; align-items:center; gap:4px; }
+.barcode-btn:hover  { background:rgba(255,255,255,.28); }
+.barcode-btn.active { background:#f59e0b; color:#000; }
+.barcode-indicator { position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:1200; background:#1e293b; color:#fff; border-radius:12px; padding:8px 18px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; box-shadow:0 4px 20px rgba(0,0,0,.3); opacity:0; pointer-events:none; transition:opacity .25s; }
 .barcode-indicator.show { opacity:1; }
-.barcode-indicator .bar-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #4ade80;
-    animation: lamp-pulse 1s infinite;
-}
+.bar-dot { width:8px; height:8px; border-radius:50%; background:#4ade80; animation:lamp-pulse 1s infinite; }
 
-/* ═══════════════════════════════════════════════════════════════
-   CAMERA SCANNER MODAL
-═══════════════════════════════════════════════════════════════ */
-#cameraViewport {
-    width: 100%;
-    aspect-ratio: 4/3;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #000;
-    position: relative;
-}
+/* ═══════════════════════════════════════════════════════
+   CAMERA SCANNER
+═══════════════════════════════════════════════════════ */
+#cameraViewport { width:100%; aspect-ratio:4/3; border-radius:10px; overflow:hidden; background:#000; position:relative; }
 #cameraVideo { width:100%; height:100%; object-fit:cover; display:block; }
-
-/* Animated scan laser */
-#scanLine {
-    position: absolute;
-    left: 10%; right: 10%;
-    height: 2px;
-    background: #ef4444;
-    box-shadow: 0 0 8px #ef4444;
-    top: 50%;
-    transform: translateY(-50%);
-    animation: scan-move 2s ease-in-out infinite;
-}
+#scanLine { position:absolute; left:10%; right:10%; height:2px; background:#ef4444; box-shadow:0 0 8px #ef4444; top:50%; transform:translateY(-50%); animation:scan-move 2s ease-in-out infinite; }
 @@keyframes scan-move { 0%,100%{top:20%} 50%{top:80%} }
-
-/* Corner brackets */
 #scanCorners { position:absolute; inset:0; pointer-events:none; }
-#scanCorners::before, #scanCorners::after {
-    content:''; position:absolute;
-    width:24px; height:24px;
-    border-color:#22c55e; border-style:solid;
-}
-#scanCorners::before {
-    top:12px; left:12px;
-    border-width:3px 0 0 3px;
-    border-radius:4px 0 0 4px;
-}
-#scanCorners::after {
-    bottom:12px; right:12px;
-    border-width:0 3px 3px 0;
-    border-radius:0 0 4px 0;
-}
-/* Extra corners (bottom-left / top-right) via JS-generated divs */
-.scan-corner-bl, .scan-corner-tr {
-    position:absolute;
-    width:24px; height:24px;
-    border-color:#22c55e; border-style:solid;
-}
+#scanCorners::before, #scanCorners::after { content:''; position:absolute; width:24px; height:24px; border-color:#22c55e; border-style:solid; }
+#scanCorners::before { top:12px; left:12px; border-width:3px 0 0 3px; border-radius:4px 0 0 4px; }
+#scanCorners::after  { bottom:12px; right:12px; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+.scan-corner-bl,.scan-corner-tr { position:absolute; width:24px; height:24px; border-color:#22c55e; border-style:solid; }
 .scan-corner-bl { bottom:12px; left:12px; border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
-.scan-corner-tr { top:12px;    right:12px; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
-
-.scan-result-flash {
-    position: absolute; inset:0;
-    background: rgba(34,197,94,.35);
-    border-radius: 10px;
-    opacity: 0; pointer-events:none;
-    transition: opacity .15s;
-}
+.scan-corner-tr { top:12px; right:12px; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+.scan-result-flash { position:absolute; inset:0; background:rgba(34,197,94,.35); border-radius:10px; opacity:0; pointer-events:none; transition:opacity .15s; }
 .scan-result-flash.show { opacity:1; }
-
-#scannedBarcodeDisplay {
-    font-size:12px; color:var(--text-secondary);
-    text-align:center; margin-top:8px; min-height:18px;
-    font-family:monospace; letter-spacing:1px;
-}
-
-/* Manual entry row */
+#scannedBarcodeDisplay { font-size:12px; color:var(--text-secondary); text-align:center; margin-top:8px; min-height:18px; font-family:monospace; letter-spacing:1px; }
 .manual-barcode-row { display:flex; gap:6px; margin-top:10px; }
-.manual-barcode-input {
-    flex:1; padding:7px 10px; font-size:13px;
-    border:1.5px solid var(--border);
-    border-radius:8px;
-    background:var(--bg-card);
-    color:var(--text-primary);
-    font-family:monospace; letter-spacing:1px;
-}
+.manual-barcode-input { flex:1; padding:7px 10px; font-size:13px; border:1.5px solid var(--border); border-radius:8px; background:var(--bg-card); color:var(--text-primary); font-family:monospace; letter-spacing:1px; }
 .manual-barcode-input:focus { outline:none; border-color:var(--primary-light); }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    SHIFT SUMMARY TOAST
-═══════════════════════════════════════════════════════════════ */
-.shift-summary-toast {
-    position: fixed;
-    bottom: 24px; left: 24px;
-    z-index: 1000;
-    width: 300px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 12px 35px rgba(0,0,0,.18);
-    padding: 16px;
-    display: none;
-    animation: toast-in .3s ease;
-}
+═══════════════════════════════════════════════════════ */
+.shift-summary-toast { position:fixed; bottom:24px; left:24px; z-index:1000; width:300px; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 35px rgba(0,0,0,.18); padding:16px; display:none; animation:toast-in .3s ease; }
 .shift-summary-toast.show { display:block; }
-@@keyframes toast-in {
-    from { opacity:0; transform:translateY(16px); }
-    to   { opacity:1; transform:translateY(0); }
-}
+@@keyframes toast-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 .shift-summary-title { font-size:14px; font-weight:900; margin-bottom:10px; color:var(--text-primary); }
 .shift-summary-row   { display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; }
 .shift-summary-row strong { color:var(--primary); }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    POS LAYOUT
-═══════════════════════════════════════════════════════════════ */
-.pos-layout {
-    display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: 16px;
-    height: calc(100vh - 65px - 48px);
-}
-@@media (max-width:992px) { .pos-layout { grid-template-columns:1fr; height:auto; } }
-
+═══════════════════════════════════════════════════════ */
+.pos-layout { display:grid; grid-template-columns:1fr 400px; gap:16px; height:calc(100vh - 65px - 48px); }
+@@media(max-width:992px){ .pos-layout{ grid-template-columns:1fr; height:auto; } }
 .products-panel { display:flex; flex-direction:column; overflow:hidden; }
 .prod-search    { margin-bottom:12px; }
-
 .cat-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
-.cat-tab {
-    padding:6px 14px; border-radius:999px;
-    border:1.5px solid var(--border); background:transparent;
-    color:var(--text-secondary); font-size:12px; font-weight:700;
-    cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap;
-}
+.cat-tab { padding:6px 14px; border-radius:999px; border:1.5px solid var(--border); background:transparent; color:var(--text-secondary); font-size:12px; font-weight:700; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
 .cat-tab.active { background:var(--primary-light); border-color:var(--primary-light); color:#fff; }
-
-.products-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-    gap:10px; overflow-y:auto; flex:1; padding:4px 2px;
-}
-.product-card {
-    background:var(--bg-card); border:1.5px solid var(--border);
-    border-radius:12px; padding:14px 10px; cursor:pointer; text-align:center; transition:all .2s;
-}
+.products-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; overflow-y:auto; flex:1; padding:4px 2px; }
+.product-card { background:var(--bg-card); border:1.5px solid var(--border); border-radius:12px; padding:14px 10px; cursor:pointer; text-align:center; transition:all .2s; }
 .product-card:hover  { border-color:var(--primary-light); transform:translateY(-2px); box-shadow:0 4px 16px rgba(37,99,168,.12); }
 .product-card:active { transform:scale(.97); }
-.product-card.barcode-highlight {
-    border-color:#22c55e !important;
-    box-shadow:0 0 0 3px rgba(34,197,94,.3) !important;
-    animation:card-pop .4s ease;
-}
+.product-card.barcode-highlight { border-color:#22c55e !important; box-shadow:0 0 0 3px rgba(34,197,94,.3) !important; animation:card-pop .4s ease; }
 @@keyframes card-pop { 0%{transform:scale(1)} 40%{transform:scale(1.06)} 100%{transform:scale(1)} }
-
-.order-panel {
-    background:var(--bg-card); border:1px solid var(--border);
-    border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow);
-}
+.order-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow); }
 .order-items-list { flex:1; overflow-y:auto; }
 </style>
 
-<!-- ── Physical scanner active indicator ────────────────────── -->
+<!-- مؤشر الباركود -->
 <div class="barcode-indicator" id="barcodeIndicator">
     <div class="bar-dot"></div>
     <span>📡 سكانر الباركود نشط — امسح المنتج</span>
 </div>
 
-<!-- ── Shift summary toast ──────────────────────────────────── -->
+<!-- ملخص إغلاق الوردية -->
 <div class="shift-summary-toast" id="shiftSummaryToast">
     <div class="shift-summary-title">✅ تم إغلاق الوردية</div>
     <div class="shift-summary-row"><span>إجمالي المبيعات</span><strong id="summaryTotalSales">0.00 ج.م</strong></div>
@@ -294,33 +114,25 @@
     <div class="shift-summary-row"><span>الفرق</span><strong id="summaryDifference">0.00 ج.م</strong></div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     MAIN POS LAYOUT
-════════════════════════════════════════════════════════════ -->
+<!-- تخطيط POS الرئيسي -->
 <div class="pos-layout">
 
-    <!-- ══ LEFT: Products panel ══════════════════════════════════ -->
+    <!-- اليسار: المنتجات -->
     <div class="products-panel">
         <div class="prod-search">
             <div class="search-bar">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="prodSearch"
-                       placeholder="بحث عن منتج أو باركود..."
-                       oninput="filterProducts()"
-                       class="form-control"
-                       data-t-placeholder="search">
+                <input type="text" id="prodSearch" placeholder="بحث عن منتج أو باركود..."
+                       oninput="filterProducts()" class="form-control">
             </div>
         </div>
 
         <div class="cat-tabs" id="catTabs">
-            <button class="cat-tab active" onclick="filterByCategory(null,this)" data-lang="ar">🔍 الكل</button>
-            <button class="cat-tab active" onclick="filterByCategory(null,this)" data-lang="en" style="display:none">🔍 All</button>
+            <button class="cat-tab active" onclick="filterByCategory(null,this)">🔍 الكل</button>
             @foreach (var cat in Model)
             {
                 <button class="cat-tab" onclick="filterByCategory('@cat.Name',this)" data-cat="@cat.Name">
-                    @cat.Icon
-                    <span data-lang="ar">@cat.NameAr</span>
-                    <span data-lang="en" style="display:none">@cat.Name</span>
+                    @cat.Icon @cat.NameAr
                 </button>
             }
         </div>
@@ -328,36 +140,45 @@
         <div class="products-grid" id="productsGrid"></div>
     </div>
 
-    <!-- ══ RIGHT: Order panel ════════════════════════════════════ -->
+    <!-- اليمين: لوحة الطلب -->
     <div class="order-panel">
 
-        <!-- ── Header ─────────────────────────────────────────── -->
+        <!-- الهيدر -->
         <div style="background:var(--primary);color:#fff;padding:12px 14px">
 
-            <!-- Row 1: title + lamp + trash -->
+            <!-- صف 1: العنوان + اسم الفرع + حذف -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div>
-                    <h3 style="font-size:15px;font-weight:700;margin:0" data-t="new-order">طلب جديد</h3>
-                    <small style="opacity:.7;font-size:11px" id="orderNumDisplay">#---</small>
+                    <h3 style="font-size:15px;font-weight:700;margin:0">طلب جديد</h3>
+                    <small style="opacity:.7;font-size:11px">
+                        @if (branch != null) { <span>@branch.Icon @branch.NameAr · </span> }
+                        <span id="orderNumDisplay">#---</span>
+                    </small>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
-                    <!-- Status lamp — click to open/close shift -->
-                    <div class="shift-lamp-wrap" id="shiftLampWrap"
-                         onclick="handleShiftLampClick()" title="حالة الوردية">
+                    <div class="shift-lamp-wrap" id="shiftLampWrap" onclick="handleShiftLampClick()" title="حالة الوردية">
                         <div class="shift-lamp loading" id="shiftLamp"></div>
                         <span class="shift-lamp-label" id="shiftLampLabel">جاري التحميل...</span>
                     </div>
-                    <button class="btn btn-sm"
-                            style="background:rgba(255,255,255,.15);color:#fff;border:none"
-                            onclick="clearOrder()">🗑️</button>
+                    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none" onclick="clearOrder()">🗑️</button>
                 </div>
             </div>
 
-            <!-- Row 2: shift + scanner buttons -->
+            <!-- صف 2: بانر حالة الوردية -->
+            <div id="shiftStateBanner" style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.25);border-radius:10px;padding:7px 12px;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div class="shift-lamp loading" id="shiftLampBanner" style="width:14px;height:14px"></div>
+                    <div>
+                        <div class="shift-lamp-label" id="shiftLampLabel2" style="font-size:13px;font-weight:900">جاري التحميل...</div>
+                        <div id="shiftSubLabel" style="font-size:10px;opacity:.7;color:#fff">يرجى الانتظار</div>
+                    </div>
+                </div>
+                <div id="shiftActionArea" style="display:flex;gap:6px"></div>
+            </div>
+
+            <!-- صف 3: أزرار الباركود -->
             <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button id="confirmOpenShiftBtn"  class="shift-action-btn open-btn"  style="flex:1" onclick="handleOpenShift()">🟢 فتح وردية</button>
-                <button id="confirmCloseShiftBtn" class="shift-action-btn close-btn" style="flex:1" onclick="handleCloseShift()">🔴 غلق الوردية</button>
-                <button id="physicalScannerBtn"   class="barcode-btn" onclick="togglePhysicalScanner()" title="USB / بلوتوث سكانر">
+                <button id="physicalScannerBtn" class="barcode-btn" onclick="togglePhysicalScanner()" title="سكانر USB / بلوتوث">
                     <span>📡</span><span style="font-size:10px">سكانر</span>
                 </button>
                 <button class="barcode-btn" onclick="openCameraScanner()" title="سكانر الكاميرا">
@@ -366,7 +187,7 @@
             </div>
         </div>
 
-        <!-- ── Order type + table ─────────────────────────────── -->
+        <!-- نوع الطلب + الطاولة -->
         <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
             <select id="orderType" class="form-control" style="flex:1;min-width:100px;padding:6px 8px;font-size:12px">
                 <option value="0">🪑 صالة</option>
@@ -382,20 +203,19 @@
             </select>
         </div>
 
-        <!-- ── Cart items ─────────────────────────────────────── -->
+        <!-- عناصر السلة -->
         <div class="order-items-list" id="orderItemsList">
             <div class="order-empty" id="orderEmpty">
                 <div class="empty-icon">🛒</div>
-                <p data-lang="ar">لا يوجد منتجات مضافة</p>
-                <p data-lang="en" style="display:none">No items added yet</p>
+                <p>لا يوجد منتجات مضافة</p>
             </div>
         </div>
 
-        <!-- ── Totals + checkout ─────────────────────────────── -->
+        <!-- الإجماليات والدفع -->
         <div style="padding:12px 16px;border-top:1px solid var(--border)">
             <div class="order-totals">
                 <div class="total-row">
-                    <span style="color:var(--text-secondary)" data-t="subtotal">المجموع الفرعي</span>
+                    <span style="color:var(--text-secondary)">المجموع الفرعي</span>
                     <span id="subTotal">0.00 ج.م</span>
                 </div>
                 <div class="total-row">
@@ -403,33 +223,26 @@
                     <span id="taxAmt">0.00 ج.م</span>
                 </div>
                 <div class="total-row" id="discRow" style="display:none">
-                    <span style="color:var(--success)" data-t="discount">خصم</span>
+                    <span style="color:var(--success)">خصم</span>
                     <span id="discAmt" style="color:var(--success)">0.00- ج.م</span>
                 </div>
                 <div class="total-row grand">
-                    <span data-t="total">الإجمالي</span>
+                    <span>الإجمالي</span>
                     <span id="grandTotal">0.00 ج.م</span>
                 </div>
             </div>
 
             <div style="display:flex;gap:6px;margin-bottom:10px">
                 <input type="number" id="discount" class="form-control"
-                       placeholder="خصم (ج.م)" min="0"
-                       style="padding:6px 10px;font-size:12px" oninput="recalc()">
+                       placeholder="خصم (ج.م)" min="0" style="padding:6px 10px;font-size:12px" oninput="recalc()">
                 <input type="text" id="customerName" class="form-control"
-                       placeholder="اسم العميل"
-                       style="padding:6px 10px;font-size:12px" data-t-placeholder="customer-name">
+                       placeholder="اسم العميل" style="padding:6px 10px;font-size:12px">
             </div>
 
             <div style="margin-bottom:10px">
-                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px" data-t="payment-method">
-                    طريقة الدفع
-                </div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px">طريقة الدفع</div>
                 <div style="display:flex;gap:6px">
-                    <button class="btn btn-sm payment-btn active" onclick="setPayment(0,this)"
-                            style="flex:1;font-size:11px;background:var(--primary-light);color:#fff;border:none">
-                        💵 نقدي
-                    </button>
+                    <button class="btn btn-sm payment-btn active" onclick="setPayment(0,this)" style="flex:1;font-size:11px;background:var(--primary-light);color:#fff;border:none">💵 نقدي</button>
                     <button class="btn btn-sm payment-btn btn-outline" onclick="setPayment(1,this)" style="flex:1;font-size:11px">💳 كارت</button>
                     <button class="btn btn-sm payment-btn btn-outline" onclick="setPayment(2,this)" style="flex:1;font-size:11px">📱 إلكتروني</button>
                 </div>
@@ -438,8 +251,7 @@
             <div id="cashSection" style="display:flex;gap:6px;margin-bottom:10px">
                 <div style="flex:1">
                     <input type="number" id="amountPaid" class="form-control"
-                           placeholder="المبلغ المدفوع" oninput="calcChange()"
-                           style="padding:6px 10px;font-size:12px">
+                           placeholder="المبلغ المدفوع" oninput="calcChange()" style="padding:6px 10px;font-size:12px">
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--success);white-space:nowrap">
                     باقي: <span id="changeAmt">0.00</span>
@@ -447,15 +259,13 @@
             </div>
 
             <button class="btn btn-accent w-full btn-lg" onclick="placeOrder()" id="placeOrderBtn" disabled>
-                ✅ <span data-t="place-order">تأكيد الطلب</span>
+                ✅ تأكيد الطلب
             </button>
         </div>
     </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     INVOICE MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- مودال الفاتورة -->
 <div class="modal-overlay" id="invoiceModal">
     <div class="modal" style="max-width:400px">
         <div class="modal-header">
@@ -470,9 +280,7 @@
     </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     SHIFT MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- مودال الوردية -->
 <div class="modal-overlay" id="shiftModal">
     <div class="modal" style="max-width:380px">
         <div class="modal-header">
@@ -480,11 +288,9 @@
             <button class="modal-close" onclick="Modal.close('shiftModal')">✕</button>
         </div>
         <div class="modal-body">
-
-            <!-- Open form -->
             <div id="openShiftForm">
                 <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13px">
-                    لا يوجد وردية مفتوحة حالياً، أدخل رأس المال لفتح وردية جديدة.
+                    لا يوجد وردية مفتوحة حالياً. أدخل رأس المال لفتح وردية جديدة.
                 </p>
                 <div class="form-group">
                     <label class="form-label">رأس المال (نقدي)</label>
@@ -494,8 +300,6 @@
                     🟢 فتح الوردية
                 </button>
             </div>
-
-            <!-- Close form -->
             <div id="closeShiftForm" style="display:none">
                 <div class="alert alert-info" style="margin-bottom:14px;font-size:13px">
                     ✅ الوردية مفتوحة منذ <strong id="shiftStart">---</strong>
@@ -512,14 +316,11 @@
                     🔴 إغلاق الوردية
                 </button>
             </div>
-
         </div>
     </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     CAMERA SCANNER MODAL
-════════════════════════════════════════════════════════════ -->
+<!-- مودال سكانر الكاميرا -->
 <div class="modal-overlay" id="cameraScannerModal">
     <div class="modal" style="max-width:430px">
         <div class="modal-header">
@@ -527,8 +328,6 @@
             <button class="modal-close" onclick="closeCameraScanner()">✕</button>
         </div>
         <div class="modal-body" style="padding:16px">
-
-            <!-- Viewport -->
             <div id="cameraViewport">
                 <video id="cameraVideo" autoplay playsinline muted></video>
                 <div id="scanLine"></div>
@@ -538,33 +337,21 @@
                 </div>
                 <div class="scan-result-flash" id="scanFlash"></div>
             </div>
-
             <p id="scannedBarcodeDisplay">وجّه الكاميرا نحو الباركود...</p>
-
-            <!-- Camera selector -->
             <div style="margin-top:8px">
-                <select id="cameraSelect" class="form-control"
-                        style="font-size:12px;padding:6px 8px"
-                        onchange="switchCamera()">
+                <select id="cameraSelect" class="form-control" style="font-size:12px;padding:6px 8px" onchange="switchCamera()">
                     <option>جاري تحميل الكاميرات...</option>
                 </select>
             </div>
-
-            <!-- Manual entry -->
             <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px">
-                    📝 إدخال يدوي أو سكانر USB
-                </div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px">📝 إدخال يدوي أو سكانر USB</div>
                 <div class="manual-barcode-row">
                     <input type="text" id="manualBarcodeInput" class="manual-barcode-input"
                            placeholder="اكتب أو امسح الباركود هنا..."
-                           onkeydown="handleManualBarcodeKey(event)"
-                           autocomplete="off">
-                    <button class="btn btn-primary btn-sm" onclick="submitManualBarcode()"
-                            style="padding:7px 14px;font-size:12px">بحث</button>
+                           onkeydown="handleManualBarcodeKey(event)" autocomplete="off">
+                    <button class="btn btn-primary btn-sm" onclick="submitManualBarcode()" style="padding:7px 14px;font-size:12px">بحث</button>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -572,95 +359,77 @@
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <script>
-/* ════════════════════════════════════════════════════════════════
-   CONSTANTS (from server-side settings)
-════════════════════════════════════════════════════════════════ */
-const TAX_RATE    = @taxRate / 100;
-const ORG_NAME    = '@orgName';
-const ORG_NAME_EN = '@settings.GetValueOrDefault("OrgNameEn", "Aircraft Factory Club")';
-const FOOTER      = '@settings.GetValueOrDefault("FooterNote", "شكراً لزيارتكم")';
-const CURRENCY    = '@settings.GetValueOrDefault("Currency",   "EGP")';
-const PHONE       = '@settings.GetValueOrDefault("Phone",      "")';
-const ADDRESS     = '@settings.GetValueOrDefault("Address",    "")';
+/* ════════════════════════════════════════════════════
+   ثوابت من الإعدادات
+════════════════════════════════════════════════════ */
+const TAX_RATE = @taxRate / 100;
+const ORG_NAME = '@Html.Raw(orgName)';
+const ORG_NAME_EN = '@Html.Raw(settings.GetValueOrDefault("OrgNameEn","Aircraft Factory Club"))';
+const FOOTER   = '@Html.Raw(settings.GetValueOrDefault("FooterNote","شكراً لزيارتكم"))';
+const CURRENCY = '@settings.GetValueOrDefault("Currency","EGP")';
+const PHONE    = '@settings.GetValueOrDefault("Phone","")';
+const ADDRESS  = '@Html.Raw(settings.GetValueOrDefault("Address",""))';
 
-/* ════════════════════════════════════════════════════════════════
-   APP STATE
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   الحالة
+════════════════════════════════════════════════════ */
 let products          = [];
 let cart              = [];
 let selectedPayment   = 0;
 let currentOrderId    = null;
 let currentCategoryId = null;
 let lastInvoiceHtml   = '';
-
-// Shift: null=unknown | true=open | false=closed
 let isShiftOpen           = null;
 let currentShiftStartTime = null;
 let shiftStatusLoading    = false;
 
-/* ════════════════════════════════════════════════════════════════
-   PHYSICAL BARCODE SCANNER
-   USB / Bluetooth scanners behave like keyboards — they type
-   characters very fast then send Enter.  We buffer keystrokes
-   and flush when Enter arrives OR after a timeout.
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   سكانر الباركود الفيزيائي
+════════════════════════════════════════════════════ */
 let physicalScannerActive = false;
 let barcodeBuffer         = '';
 let barcodeTimer          = null;
-const BARCODE_GAP_MS      = 80; // gap > 80 ms ≈ human typing, not scanner
+const BARCODE_GAP_MS      = 80;
 
 function togglePhysicalScanner() {
     physicalScannerActive = !physicalScannerActive;
     const btn = document.getElementById('physicalScannerBtn');
     const ind = document.getElementById('barcodeIndicator');
     if (physicalScannerActive) {
-        btn.classList.add('active');
-        ind.classList.add('show');
+        btn.classList.add('active'); ind.classList.add('show');
         Toast.info('📡 سكانر الباركود نشط');
     } else {
-        btn.classList.remove('active');
-        ind.classList.remove('show');
-        barcodeBuffer = '';
-        clearTimeout(barcodeTimer);
+        btn.classList.remove('active'); ind.classList.remove('show');
+        barcodeBuffer = ''; clearTimeout(barcodeTimer);
     }
 }
 
 document.addEventListener('keydown', function(e) {
     if (!physicalScannerActive) return;
-
-    // Don't intercept if user is typing in any real input except the product search
     const tag = document.activeElement.tagName;
     const id  = document.activeElement.id;
     if (tag === 'TEXTAREA') return;
     if (tag === 'INPUT' && id !== 'prodSearch') return;
-
     if (e.key === 'Enter') {
         e.preventDefault();
-        const code = barcodeBuffer.trim();
-        barcodeBuffer = '';
-        clearTimeout(barcodeTimer);
+        const code = barcodeBuffer.trim(); barcodeBuffer = ''; clearTimeout(barcodeTimer);
         if (code.length >= 2) processBarcode(code);
         return;
     }
-
     if (e.key.length === 1) {
         barcodeBuffer += e.key;
         clearTimeout(barcodeTimer);
         barcodeTimer = setTimeout(() => {
-            const code = barcodeBuffer.trim();
-            barcodeBuffer = '';
+            const code = barcodeBuffer.trim(); barcodeBuffer = '';
             if (code.length >= 4) processBarcode(code);
         }, BARCODE_GAP_MS);
     }
 });
 
-/* ════════════════════════════════════════════════════════════════
-   CAMERA BARCODE SCANNER  (Quagga.js)
-════════════════════════════════════════════════════════════════ */
-let cameraStream       = null;
-let quaggaRunning      = false;
-let lastCameraCode     = '';
-let cameraCooldown     = false;
+/* ════════════════════════════════════════════════════
+   سكانر الكاميرا (Quagga.js)
+════════════════════════════════════════════════════ */
+let cameraStream = null, quaggaRunning = false, lastCameraCode = '', cameraCooldown = false;
 
 async function openCameraScanner() {
     Modal.open('cameraScannerModal');
@@ -670,94 +439,46 @@ async function openCameraScanner() {
 
 async function populateCameraList() {
     try {
-        // Must request permission first so labels are populated
         await navigator.mediaDevices.getUserMedia({ video: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput');
         const sel = document.getElementById('cameraSelect');
-        sel.innerHTML = cameras.map((d, i) =>
-            `<option value="${d.deviceId}">${d.label || 'كاميرا ' + (i + 1)}</option>`
-        ).join('');
-        // Prefer back/environment camera
-        const backIdx = cameras.findIndex(d =>
-            /back|rear|environment/i.test(d.label)
-        );
+        sel.innerHTML = cameras.map((d,i) => `<option value="${d.deviceId}">${d.label || 'كاميرا '+(i+1)}</option>`).join('');
+        const backIdx = cameras.findIndex(d => /back|rear|environment/i.test(d.label));
         if (backIdx > -1) sel.selectedIndex = backIdx;
-    } catch (_) {
-        // Permission denied or no cameras — leave default option
-    }
+    } catch(_) {}
 }
 
-function switchCamera() {
-    stopCameraScanner();
-    setTimeout(startCameraScanner, 300);
-}
+function switchCamera() { stopCameraScanner(); setTimeout(startCameraScanner, 300); }
 
 function startCameraScanner() {
-    const sel      = document.getElementById('cameraSelect');
+    const sel = document.getElementById('cameraSelect');
     const deviceId = sel.value || undefined;
-
-    const constraints = deviceId
-        ? { deviceId: { exact: deviceId } }
-        : { facingMode: { ideal: 'environment' } };
-
+    const constraints = deviceId ? { deviceId:{ exact:deviceId } } : { facingMode:{ ideal:'environment' } };
     Quagga.init({
-        inputStream: {
-            name: 'Live',
-            type: 'LiveStream',
-            target: document.getElementById('cameraVideo'),
-            constraints
-        },
-        decoder: {
-            readers: [
-                'ean_reader', 'ean_8_reader',
-                'upc_reader', 'upc_e_reader',
-                'code_128_reader', 'code_39_reader',
-                'code_93_reader',  'codabar_reader',
-                'i2of5_reader',    '2of5_reader'
-            ]
-        },
+        inputStream: { name:'Live', type:'LiveStream', target: document.getElementById('cameraVideo'), constraints },
+        decoder: { readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader','code_93_reader','codabar_reader','i2of5_reader','2of5_reader'] },
         locate: true
     }, function(err) {
-        if (err) {
-            Toast.error('تعذر تشغيل الكاميرا — تحقق من الصلاحيات');
-            return;
-        }
-        Quagga.start();
-        quaggaRunning = true;
-
-        // Grab the stream so we can stop it cleanly
-        const video = document.getElementById('cameraVideo');
-        cameraStream = video.srcObject;
+        if (err) { Toast.error('تعذر تشغيل الكاميرا — تحقق من الصلاحيات'); return; }
+        Quagga.start(); quaggaRunning = true;
+        cameraStream = document.getElementById('cameraVideo').srcObject;
     });
-
     Quagga.onDetected(function(result) {
         const code = result?.codeResult?.code;
         if (!code || cameraCooldown || code === lastCameraCode) return;
-
-        lastCameraCode = code;
-        cameraCooldown = true;
+        lastCameraCode = code; cameraCooldown = true;
         setTimeout(() => { cameraCooldown = false; lastCameraCode = ''; }, 1500);
-
-        // Visual flash
         const flash = document.getElementById('scanFlash');
-        flash.classList.add('show');
-        setTimeout(() => flash.classList.remove('show'), 300);
-
+        flash.classList.add('show'); setTimeout(() => flash.classList.remove('show'), 300);
         document.getElementById('scannedBarcodeDisplay').textContent = '✅ ' + code;
         processBarcode(code);
     });
 }
 
 function stopCameraScanner() {
-    if (quaggaRunning) {
-        try { Quagga.stop(); } catch (_) {}
-        quaggaRunning = false;
-    }
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-    }
+    if (quaggaRunning) { try { Quagga.stop(); } catch(_){} quaggaRunning = false; }
+    if (cameraStream)  { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
 }
 
 function closeCameraScanner() {
@@ -767,15 +488,8 @@ function closeCameraScanner() {
     Modal.close('cameraScannerModal');
 }
 
-// Close camera if modal overlay clicked
-document.getElementById('cameraScannerModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCameraScanner();
-});
-
-/* ── Manual / USB entry inside camera modal ─────────────────── */
-function handleManualBarcodeKey(e) {
-    if (e.key === 'Enter') { e.preventDefault(); submitManualBarcode(); }
-}
+document.getElementById('cameraScannerModal').addEventListener('click', function(e) { if (e.target === this) closeCameraScanner(); });
+function handleManualBarcodeKey(e) { if (e.key==='Enter') { e.preventDefault(); submitManualBarcode(); } }
 function submitManualBarcode() {
     const val = document.getElementById('manualBarcodeInput').value.trim();
     if (!val) return;
@@ -783,104 +497,113 @@ function submitManualBarcode() {
     processBarcode(val);
 }
 
-/* ════════════════════════════════════════════════════════════════
-   BARCODE LOOKUP  (shared by physical + camera + manual)
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   البحث بالباركود
+════════════════════════════════════════════════════ */
 function processBarcode(code) {
-    // 1) Match by barcode field
     let product = products.find(p => p.barcode && p.barcode === code);
-
-    // 2) Fallback: numeric code matches product id
-    if (!product) {
-        const num = parseInt(code, 10);
-        if (!isNaN(num)) product = products.find(p => p.id === num);
-    }
-
+    if (!product) { const num = parseInt(code,10); if (!isNaN(num)) product = products.find(p => p.id === num); }
     if (!product) {
         Toast.error('⚠️ لم يتم العثور على منتج: ' + code);
-        // Fill search box so cashier can search manually
-        const s = document.getElementById('prodSearch');
-        s.value = code;
-        filterProducts();
-        return;
+        document.getElementById('prodSearch').value = code; filterProducts(); return;
     }
-
-    if (product.trackStock && product.stockQuantity <= 0) {
-        Toast.error('⚠️ المنتج غير متوفر في المخزون');
-        return;
-    }
-
+    if (product.trackStock && product.stockQuantity <= 0) { Toast.error('⚠️ المنتج غير متوفر في المخزون'); return; }
     addToCart(product.id);
     highlightCard(product.id);
     Toast.success('✅ ' + (product.nameAr || product.name));
 }
 
 function highlightCard(productId) {
-    // Works even if the card is currently filtered out — scroll it into view
-    const selector = `.product-card[onclick="addToCart(${productId})"]`;
-    const card = document.querySelector(selector);
+    const card = document.querySelector(`.product-card[data-pid="${productId}"]`);
     if (!card) return;
     card.classList.add('barcode-highlight');
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    card.scrollIntoView({ behavior:'smooth', block:'nearest' });
     setTimeout(() => card.classList.remove('barcode-highlight'), 700);
 }
 
-/* ════════════════════════════════════════════════════════════════
-   SHIFT LAMP
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   لمبة الوردية
+════════════════════════════════════════════════════ */
 function setLamp(state) {
-    const lamp  = document.getElementById('shiftLamp');
-    const label = document.getElementById('shiftLampLabel');
-    if (!lamp) return;
-    lamp.className    = 'shift-lamp ' + state;
-    label.textContent =
-        state === 'on'  ? 'وردية مفتوحة'  :
-        state === 'off' ? 'لا توجد وردية' : 'جاري التحميل...';
-}
-
-function setShiftBtnsDisabled(v) {
-    ['confirmOpenShiftBtn','confirmCloseShiftBtn'].forEach(id => {
-        const b = document.getElementById(id);
-        if (b) b.disabled = v;
+    // Update both lamps (header + banner)
+    ['shiftLamp','shiftLampBanner'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'shift-lamp ' + state;
     });
-}
 
-function setModalBtn(id, loading, loadingTxt, normalTxt) {
-    const b = document.getElementById(id);
-    if (!b) return;
-    b.disabled  = loading;
-    b.innerHTML = loading ? loadingTxt : normalTxt;
-}
+    const label     = document.getElementById('shiftLampLabel');
+    const label2    = document.getElementById('shiftLampLabel2');
+    const subLabel  = document.getElementById('shiftSubLabel');
+    const actionArea= document.getElementById('shiftActionArea');
+    const placeBtn  = document.getElementById('placeOrderBtn');
+    const banner    = document.getElementById('shiftStateBanner');
 
-/* ── Fetch shift status from server ─────────────────────────── */
-async function fetchShiftStatus() {
-    if (shiftStatusLoading) return null;
-    shiftStatusLoading = true;
-    setLamp('loading');
-    setShiftBtnsDisabled(true);
-    try {
-        const s = await API.get('/Cashier/GetCurrentShift?t=' + Date.now());
-        isShiftOpen           = !!s?.isOpen;
-        currentShiftStartTime = s?.startTime || null;
-        setLamp(isShiftOpen ? 'on' : 'off');
-        return s;
-    } catch (_) {
-        Toast.error('تعذر تحميل حالة الوردية');
-        setLamp('off');
-        return null;
-    } finally {
-        shiftStatusLoading = false;
-        setShiftBtnsDisabled(false);
+    if (state === 'on') {
+        if (label)  label.textContent  = 'وردية مفتوحة';
+        if (label2) label2.textContent = '🟢 الوردية مفتوحة الآن';
+        if (label2) label2.style.color = '#4ade80';
+        if (subLabel) {
+            const since = currentShiftStartTime
+                ? 'منذ ' + new Date(currentShiftStartTime.endsWith('Z') ? currentShiftStartTime : currentShiftStartTime+'Z').toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'})
+                : '';
+            subLabel.textContent = since;
+        }
+        if (actionArea) actionArea.innerHTML = `
+            <button class="shift-action-btn close-btn" onclick="handleCloseShift()" style="font-size:12px;padding:6px 14px">
+                🔴 إغلاق الوردية
+            </button>`;
+        if (placeBtn && cart.length > 0) { placeBtn.disabled = false; placeBtn.style.opacity = ''; }
+        if (placeBtn) placeBtn.innerHTML = '✅ تأكيد الطلب';
+        if (banner) banner.style.background = 'rgba(34,197,94,.2)';
+
+    } else if (state === 'off') {
+        if (label)  label.textContent  = 'لا توجد وردية';
+        if (label2) label2.textContent = '🔴 لا توجد وردية مفتوحة';
+        if (label2) label2.style.color = '#f87171';
+        if (subLabel) subLabel.textContent = 'يجب فتح وردية قبل إنشاء أي طلب';
+        if (actionArea) actionArea.innerHTML = `
+            <button class="shift-action-btn open-btn" onclick="handleOpenShift()" style="font-size:12px;padding:6px 14px">
+                🟢 فتح وردية جديدة
+            </button>`;
+        if (placeBtn) { placeBtn.disabled = true; placeBtn.style.opacity = '0.4'; placeBtn.innerHTML = '⛔ افتح وردية أولاً'; }
+        if (banner) banner.style.background = 'rgba(239,68,68,.2)';
+
+    } else {
+        if (label)  label.textContent  = 'جاري التحميل...';
+        if (label2) label2.textContent = 'جاري التحقق من الوردية...';
+        if (label2) label2.style.color = '#fbbf24';
+        if (subLabel) subLabel.textContent = '';
+        if (actionArea) actionArea.innerHTML = '';
+        if (placeBtn) { placeBtn.disabled = true; placeBtn.style.opacity = '0.4'; }
+        if (banner) banner.style.background = 'rgba(251,191,36,.15)';
     }
 }
 
-/* Lamp click → smart toggle */
-function handleShiftLampClick() {
-    if (isShiftOpen === true) handleCloseShift();
-    else                       handleOpenShift();
+function setShiftBtnsDisabled(v) {
+    document.querySelectorAll('#shiftActionArea button').forEach(b => b.disabled = v);
 }
 
-/* ── Open shift flow ─────────────────────────────────────────── */
+function setModalBtn(id, loading, loadTxt, normTxt) {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.disabled = loading; b.innerHTML = loading ? loadTxt : normTxt;
+}
+
+async function fetchShiftStatus() {
+    if (shiftStatusLoading) return null;
+    shiftStatusLoading = true; setLamp('loading'); setShiftBtnsDisabled(true);
+    try {
+        const s = await API.get('/Cashier/GetCurrentShift?t=' + Date.now());
+        isShiftOpen = !!s?.isOpen; currentShiftStartTime = s?.startTime || null;
+        setLamp(isShiftOpen ? 'on' : 'off'); return s;
+    } catch(_) { Toast.error('تعذر تحميل حالة الوردية'); setLamp('off'); return null; }
+    finally { shiftStatusLoading = false; setShiftBtnsDisabled(false); }
+}
+
+function handleShiftLampClick() {
+    if (isShiftOpen === true) handleCloseShift(); else handleOpenShift();
+}
+
 async function handleOpenShift() {
     setShiftBtnsDisabled(true);
     try {
@@ -901,22 +624,13 @@ async function doOpenShift() {
     try {
         const r = await API.post('/Cashier/OpenShift', { openingCash: cash });
         if (r.success) {
-            isShiftOpen           = true;
-            currentShiftStartTime = r.startTime || r.shiftStartTime || new Date().toISOString();
-            setLamp('on');
-            Toast.success('✅ تم فتح الوردية');
-            Modal.close('shiftModal');
-        } else {
-            Toast.error(r.message || 'خطأ في فتح الوردية');
-        }
-    } catch (_) {
-        Toast.error('حدث خطأ أثناء فتح الوردية');
-    } finally {
-        setModalBtn('doOpenShiftBtn', false, '⏳ جاري الفتح...', '🟢 فتح الوردية');
-    }
+            isShiftOpen = true; currentShiftStartTime = new Date().toISOString();
+            setLamp('on'); Toast.success('✅ تم فتح الوردية'); Modal.close('shiftModal');
+        } else { Toast.error(r.message || 'خطأ في فتح الوردية'); }
+    } catch(_) { Toast.error('حدث خطأ أثناء فتح الوردية'); }
+    finally { setModalBtn('doOpenShiftBtn', false, '', '🟢 فتح الوردية'); }
 }
 
-/* ── Close shift flow ────────────────────────────────────────── */
 async function handleCloseShift() {
     setShiftBtnsDisabled(true);
     try {
@@ -927,9 +641,7 @@ async function handleCloseShift() {
         document.getElementById('closeShiftForm').style.display = 'block';
         document.getElementById('shiftModalTitle').textContent  = '🔴 إغلاق الوردية';
         document.getElementById('shiftStart').textContent =
-            currentShiftStartTime
-                ? new Date(currentShiftStartTime).toLocaleTimeString('ar-EG')
-                : '---';
+            currentShiftStartTime ? new Date(currentShiftStartTime).toLocaleTimeString('ar-EG') : '---';
         document.getElementById('closingCash').value = 0;
         document.getElementById('shiftNotes').value  = '';
         Modal.open('shiftModal');
@@ -937,35 +649,28 @@ async function handleCloseShift() {
 }
 
 async function doCloseShift() {
-    const cash  = parseFloat(document.getElementById('closingCash').value) || 0;
+    const cash = parseFloat(document.getElementById('closingCash').value) || 0;
     const notes = document.getElementById('shiftNotes').value || '';
     setModalBtn('doCloseShiftBtn', true, '⏳ جاري الإغلاق...', '🔴 إغلاق الوردية');
     try {
         const r = await API.post('/Cashier/CloseShift', { closingCash: cash, notes });
         if (r.success) {
-            isShiftOpen = false; currentShiftStartTime = null;
-            setLamp('off');
+            isShiftOpen = false; currentShiftStartTime = null; setLamp('off');
             Modal.close('shiftModal');
             document.getElementById('summaryTotalSales').textContent   = Number(r.totalSales   || 0).toFixed(2) + ' ج.م';
             document.getElementById('summaryExpectedCash').textContent = Number(r.expectedCash || 0).toFixed(2) + ' ج.م';
             document.getElementById('summaryDifference').textContent   = Number(r.difference   || 0).toFixed(2) + ' ج.م';
             const box = document.getElementById('shiftSummaryToast');
-            box.classList.add('show');
-            setTimeout(() => box.classList.remove('show'), 7000);
+            box.classList.add('show'); setTimeout(() => box.classList.remove('show'), 7000);
             Toast.success('✅ تم إغلاق الوردية');
-        } else {
-            Toast.error(r.message || 'خطأ في إغلاق الوردية');
-        }
-    } catch (_) {
-        Toast.error('حدث خطأ أثناء إغلاق الوردية');
-    } finally {
-        setModalBtn('doCloseShiftBtn', false, '⏳ جاري الإغلاق...', '🔴 إغلاق الوردية');
-    }
+        } else { Toast.error(r.message || 'خطأ في إغلاق الوردية'); }
+    } catch(_) { Toast.error('حدث خطأ أثناء إغلاق الوردية'); }
+    finally { setModalBtn('doCloseShiftBtn', false, '', '🔴 إغلاق الوردية'); }
 }
 
-/* ════════════════════════════════════════════════════════════════
-   PRODUCTS
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   المنتجات
+════════════════════════════════════════════════════ */
 async function loadProducts() {
     products = await API.get('/Cashier/GetProducts');
     renderProducts(products || []);
@@ -973,36 +678,24 @@ async function loadProducts() {
 
 function renderProducts(list) {
     const grid = document.getElementById('productsGrid');
-    const isAr = localStorage.getItem('erp-lang') !== 'en';
-
     if (!list || list.length === 0) {
         grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">🍽️ لا توجد منتجات</div>';
         return;
     }
-
     grid.innerHTML = list.map(p => `
         <div class="product-card ${p.trackStock && p.stockQuantity <= 0 ? 'out-of-stock' : ''}"
+             data-pid="${p.id}"
              onclick="${p.trackStock && p.stockQuantity <= 0 ? '' : `addToCart(${p.id})`}"
              style="border-top:3px solid ${p.categoryColor || 'var(--primary-light)'}">
             <div style="font-size:28px;margin-bottom:6px">${p.categoryIcon || '🍽️'}</div>
             <div style="font-size:12px;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:4px">
-                ${isAr ? p.nameAr || p.name : p.name}
+                ${p.nameAr || p.name}
             </div>
-            <div style="font-size:14px;font-weight:900;color:var(--primary-light)">
-                ${Number(p.price).toFixed(2)} ج.م
-            </div>
-            ${p.barcode
-                ? `<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px">
-                       📊 ${p.barcode}
-                   </div>`
-                : ''}
-            ${p.trackStock
-                ? `<div style="font-size:10px;color:${p.stockQuantity <= 5 ? 'var(--danger)' : 'var(--text-muted)'}">
-                       مخزون: ${p.stockQuantity}
-                   </div>`
-                : ''}
-        </div>
-    `).join('');
+            ${p.skipKitchen ? `<div style="background:#22c55e22;color:#22c55e;font-size:9px;font-weight:800;padding:2px 7px;border-radius:10px;margin-bottom:3px;display:inline-block">⚡ فوري</div>` : ''}
+            <div style="font-size:14px;font-weight:900;color:var(--primary-light)">${Number(p.price).toFixed(2)} ج.م</div>
+            ${p.barcode ? `<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px">📊 ${p.barcode}</div>` : ''}
+            ${p.trackStock ? `<div style="font-size:10px;color:${p.stockQuantity <= 5 ? 'var(--danger)' : 'var(--text-muted)'}">مخزون: ${p.stockQuantity}</div>` : ''}
+        </div>`).join('');
 }
 
 function filterByCategory(categoryName, btn) {
@@ -1015,31 +708,24 @@ function filterByCategory(categoryName, btn) {
 function filterProducts() {
     const q = (document.getElementById('prodSearch').value || '').toLowerCase();
     let list = [...products];
-    if (currentCategoryId)
-        list = list.filter(p => (p.categoryName || '') === currentCategoryId);
-    if (q)
-        list = list.filter(p =>
-            (p.name    || '').toLowerCase().includes(q) ||
-            (p.nameAr  || '').toLowerCase().includes(q) ||
-            (p.barcode || '').toLowerCase().includes(q)
-        );
+    if (currentCategoryId) list = list.filter(p => (p.categoryName || '') === currentCategoryId);
+    if (q) list = list.filter(p =>
+        (p.name    || '').toLowerCase().includes(q) ||
+        (p.nameAr  || '').toLowerCase().includes(q) ||
+        (p.barcode || '').toLowerCase().includes(q)
+    );
     renderProducts(list);
 }
 
-/* ════════════════════════════════════════════════════════════════
-   CART
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   السلة
+════════════════════════════════════════════════════ */
 function addToCart(productId) {
     const p = products.find(x => x.id === productId);
     if (!p) return;
     const ex = cart.find(c => c.productId === productId);
-    if (ex) {
-        ex.quantity++;
-        ex.totalPrice = ex.unitPrice * ex.quantity;
-    } else {
-        cart.push({ productId, name: p.name, nameAr: p.nameAr,
-            unitPrice: p.price, quantity: 1, totalPrice: p.price });
-    }
+    if (ex) { ex.quantity++; ex.totalPrice = ex.unitPrice * ex.quantity; }
+    else cart.push({ productId, name:p.name, nameAr:p.nameAr, unitPrice:p.price, quantity:1, totalPrice:p.price });
     renderCart();
     const btn = document.getElementById('placeOrderBtn');
     btn.style.transform = 'scale(1.02)';
@@ -1058,24 +744,18 @@ function changeQty(productId, delta) {
 function renderCart() {
     const list  = document.getElementById('orderItemsList');
     const empty = document.getElementById('orderEmpty');
-    const isAr  = localStorage.getItem('erp-lang') !== 'en';
 
     if (cart.length === 0) {
-        list.innerHTML = '';
-        list.appendChild(empty);
-        empty.style.display = 'flex';
+        list.innerHTML = ''; list.appendChild(empty); empty.style.display = 'flex';
         document.getElementById('placeOrderBtn').disabled = true;
-        recalc();
-        return;
+        recalc(); return;
     }
 
     list.innerHTML = cart.map(item => `
         <div class="order-item" id="item-${item.productId}">
             <div style="flex:1;min-width:0">
-                <div class="order-item-name">${isAr ? item.nameAr || item.name : item.name}</div>
-                <div style="font-size:11px;color:var(--text-muted)">
-                    ${Number(item.unitPrice).toFixed(2)} ج.م × ${item.quantity}
-                </div>
+                <div class="order-item-name">${item.nameAr || item.name}</div>
+                <div style="font-size:11px;color:var(--text-muted)">${Number(item.unitPrice).toFixed(2)} ج.م × ${item.quantity}</div>
             </div>
             <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty(${item.productId},-1)">−</button>
@@ -1083,75 +763,81 @@ function renderCart() {
                 <button class="qty-btn" onclick="changeQty(${item.productId},1)">+</button>
             </div>
             <div class="order-item-price">${Number(item.totalPrice).toFixed(2)}</div>
-        </div>
-    `).join('');
+        </div>`).join('');
 
-    document.getElementById('placeOrderBtn').disabled = false;
+    document.getElementById('placeOrderBtn').disabled = (isShiftOpen !== true);
     recalc();
 }
 
 function recalc() {
-    const sub   = cart.reduce((s, i) => s + i.totalPrice, 0);
-    const disc  = Math.min(parseFloat(document.getElementById('discount').value) || 0, sub);
-    const tax   = (sub - disc) * TAX_RATE;
-    const total = sub + tax - disc;
+    const sub  = cart.reduce((s,i) => s + i.totalPrice, 0);
+    const disc = Math.min(parseFloat(document.getElementById('discount').value)||0, sub);
+    const tax  = (sub - disc) * TAX_RATE;
+    const total= sub + tax - disc;
     document.getElementById('subTotal').textContent   = sub.toFixed(2)   + ' ج.م';
     document.getElementById('taxAmt').textContent     = tax.toFixed(2)   + ' ج.م';
     document.getElementById('grandTotal').textContent = total.toFixed(2) + ' ج.م';
     const dr = document.getElementById('discRow');
-    if (disc > 0) {
-        dr.style.display = 'flex';
-        document.getElementById('discAmt').textContent = disc.toFixed(2) + '- ج.م';
-    } else {
-        dr.style.display = 'none';
-    }
+    if (disc > 0) { dr.style.display='flex'; document.getElementById('discAmt').textContent = disc.toFixed(2)+'- ج.م'; }
+    else dr.style.display = 'none';
     calcChange();
 }
 
 function calcChange() {
-    const total = parseFloat(document.getElementById('grandTotal').textContent) || 0;
-    const paid  = parseFloat(document.getElementById('amountPaid').value) || 0;
-    document.getElementById('changeAmt').textContent = Math.max(0, paid - total).toFixed(2);
+    const total = parseFloat(document.getElementById('grandTotal').textContent)||0;
+    const paid  = parseFloat(document.getElementById('amountPaid').value)||0;
+    document.getElementById('changeAmt').textContent = Math.max(0, paid-total).toFixed(2);
 }
 
 function setPayment(method, btn) {
     selectedPayment = method;
-    document.querySelectorAll('.payment-btn').forEach(b => {
-        b.className     = 'btn btn-sm payment-btn btn-outline';
-        b.style.cssText = 'flex:1;font-size:11px';
-    });
-    btn.className     = 'btn btn-sm payment-btn';
+    document.querySelectorAll('.payment-btn').forEach(b => { b.className='btn btn-sm payment-btn btn-outline'; b.style.cssText='flex:1;font-size:11px'; });
+    btn.className = 'btn btn-sm payment-btn';
     btn.style.cssText = 'flex:1;font-size:11px;background:var(--primary-light);color:#fff;border:none';
-    document.getElementById('cashSection').style.display = method === 0 ? 'flex' : 'none';
+    document.getElementById('cashSection').style.display = method===0 ? 'flex' : 'none';
 }
 
 function clearOrder() {
     cart = [];
-    ['discount','amountPaid','customerName'].forEach(id => {
-        document.getElementById(id).value = '';
-    });
+    ['discount','amountPaid','customerName'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     currentOrderId = null;
+    document.getElementById('subTotal').textContent   = '0.00 ج.م';
+    document.getElementById('taxAmt').textContent     = '0.00 ج.م';
+    document.getElementById('grandTotal').textContent = '0.00 ج.م';
+    document.getElementById('changeAmt').textContent  = '0.00';
+    document.getElementById('discRow').style.display  = 'none';
     renderCart();
     Toast.info('تم مسح الطلب');
 }
 
-/* ════════════════════════════════════════════════════════════════
-   ORDER
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   تأكيد الطلب
+════════════════════════════════════════════════════ */
 async function placeOrder() {
-    if (cart.length === 0) return;
-    const disc = parseFloat(document.getElementById('discount').value) || 0;
-    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    if (cart.length===0) return;
+
+    // التحقق من الوردية مباشرة من الخادم
+    try {
+        const shiftCheck = await API.get('/Cashier/GetCurrentShift?t=' + Date.now());
+        if (!shiftCheck || !shiftCheck.isOpen) {
+            isShiftOpen = false; setLamp('off');
+            Toast.error('⛔ لا توجد وردية مفتوحة — يرجى فتح وردية أولاً');
+            return;
+        }
+        isShiftOpen = true; setLamp('on');
+    } catch(e) { Toast.error('تعذر التحقق من حالة الوردية'); return; }
+
+    const disc  = parseFloat(document.getElementById('discount').value)||0;
+    const total = parseFloat(document.getElementById('grandTotal').textContent)||0;
+    const paid  = parseFloat(document.getElementById('amountPaid').value) || total;
     Loading.show();
     try {
         const r = await API.post('/Cashier/PlaceOrder', {
-            items:          cart.map(i => ({ productId: i.productId, quantity: i.quantity })),
+            items:          cart.map(i => ({ productId:i.productId, quantity:i.quantity })),
             tableId:        document.getElementById('tableSelect').value || null,
             type:           parseInt(document.getElementById('orderType').value),
             customerName:   document.getElementById('customerName').value,
-            discountAmount: disc,
-            amountPaid:     paid,
-            paymentMethod:  selectedPayment
+            discountAmount: disc, amountPaid: paid, paymentMethod: selectedPayment
         });
         if (r.success) {
             currentOrderId = r.orderId;
@@ -1163,101 +849,85 @@ async function placeOrder() {
     } finally { Loading.hide(); }
 }
 
-/* ════════════════════════════════════════════════════════════════
-   INVOICE
-════════════════════════════════════════════════════════════════ */
-
+/* ════════════════════════════════════════════════════
+   الفاتورة
+════════════════════════════════════════════════════ */
 async function showInvoice(orderId) {
     try {
         const data = await API.get(`/Cashier/GetOrderForPrint?id=${orderId}&t=${Date.now()}`);
-        if (!data || data.success === false) {
-            Toast.error(data?.message || 'لم يتم العثور على الفاتورة');
-            return;
-        }
+        if (!data || data.success===false) { Toast.error(data?.message||'لم يتم العثور على الفاتورة'); return; }
         const o = data.order || data;
 
-        // Ensure amountPaid is valid, if not, set it to total amount
-        const amountPaid = isNaN(o.amountPaid) || o.amountPaid === 0 ? Number(o.total) : Number(o.amountPaid);
-        const change = isNaN(o.change) ? 0 : Number(o.change);
-
-        const rows = (o.items || []).map(i => `
+        const typeAr = { DineIn:'صالة', Takeaway:'تيك أواي', Delivery:'توصيل' };
+        const rows = (o.items||[]).map(i => `
             <tr>
                 <td style="text-align:right;direction:rtl;padding:4px">${i.productNameAr || i.productName}</td>
                 <td style="text-align:center;padding:4px">${i.quantity}</td>
+                <td style="text-align:right;padding:4px">${Number(i.unitPrice).toFixed(2)}</td>
                 <td style="text-align:right;padding:4px">${Number(i.totalPrice).toFixed(2)}</td>
             </tr>`).join('');
 
         const html = `
             <div style="font-family:'Cairo',sans-serif;max-width:300px;margin:0 auto;padding:10px;color:#000">
                 <div style="text-align:center;border-bottom:2px dashed #333;padding-bottom:10px;margin-bottom:10px">
+                    <img src="/logo.jpg" alt="Logo" style="max-width:150px;margin-bottom:10px;" onerror="this.style.display='none'">
                     <h2 style="margin:0;font-size:18px">${ORG_NAME}</h2>
                     <p style="margin:4px 0;font-size:12px">${ORG_NAME_EN}</p>
                     ${PHONE   ? `<p style="margin:0;font-size:11px">Tel: ${PHONE}</p>` : ''}
-                    ${ADDRESS ? `<p style="margin:0;font-size:11px">${ADDRESS}</p>`    : ''}
+                    ${ADDRESS ? `<p style="margin:0;font-size:11px">${ADDRESS}</p>` : ''}
                 </div>
-                <div style="font-size:12px;margin-bottom:10px;line-height:1.7">
-                    <div>Order: <strong>${o.orderNumber}</strong></div>
-                    <div>Date: ${new Date(o.createdAt).toLocaleString('ar-EG')}</div>
-                    <div>Type: ${o.orderType}</div>
-                    <div>Cashier: ${o.cashierName || 'N/A'}</div>
-                    ${o.tableNumber  ? `<div>Table: ${o.tableNumber}</div>`     : ''}
-                    ${o.customerName ? `<div>Customer: ${o.customerName}</div>` : ''}
+                <div style="font-size:12px;margin-bottom:10px;direction:rtl;line-height:1.7">
+                    <div>الطلب: <strong>${o.orderNumber}</strong></div>
+                    <div>التاريخ: ${new Date(o.createdAt.endsWith('Z') ? o.createdAt : o.createdAt+'Z').toLocaleString('ar-EG')}</div>
+                    <div>النوع: ${typeAr[o.orderType] || o.orderType}</div>
+                    <div>الكاشير: ${o.cashier || 'N/A'}</div>
+                    ${o.table        ? `<div>الطاولة: ${o.table}</div>` : ''}
+                    ${o.customerName ? `<div>العميل: ${o.customerName}</div>` : ''}
+                    ${o.branchName   ? `<div>الفرع: ${o.branchNameAr || o.branchName}</div>` : ''}
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;border-top:1px dashed #333;border-bottom:1px dashed #333;direction:rtl">
                     <thead><tr>
                         <th style="text-align:right;padding:4px">الصنف</th>
-                        <th style="text-align:center;padding:4px">الكمية</th>
-                        <th style="text-align:right;padding:4px">السعر</th>
+                        <th style="text-align:center;padding:4px">ك</th>
+                        <th style="text-align:right;padding:4px">سعر</th>
+                        <th style="text-align:right;padding:4px">إجمالي</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-                <div style="font-size:12px;margin-top:10px;line-height:1.8">
-                    <div style="display:flex;justify-content:space-between">
-                        <span>Subtotal:</span><span>${Number(o.subTotal).toFixed(2)} ${CURRENCY}</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between">
-                        <span>Tax (${o.taxRate}%):</span><span>${Number(o.taxAmount).toFixed(2)} ${CURRENCY}</span>
-                    </div>
-                    ${o.discountAmount > 0 ? `
-                    <div style="display:flex;justify-content:space-between">
-                        <span>Discount:</span><span>-${Number(o.discountAmount).toFixed(2)} ${CURRENCY}</span>
-                    </div>` : ''}
+                <div style="font-size:12px;margin-top:10px;direction:rtl;line-height:1.8">
+                    <div style="display:flex;justify-content:space-between"><span>المجموع الفرعي:</span><span>${Number(o.subTotal).toFixed(2)} ج.م</span></div>
+                    <div style="display:flex;justify-content:space-between"><span>ضريبة ${o.taxRate}%:</span><span>${Number(o.taxAmount).toFixed(2)} ج.م</span></div>
+                    ${o.discountAmount > 0 ? `<div style="display:flex;justify-content:space-between"><span>خصم:</span><span>-${Number(o.discountAmount).toFixed(2)} ج.م</span></div>` : ''}
                     <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:1px dashed #333;margin-top:6px;padding-top:6px">
-                        <span>TOTAL:</span><span>${Number(o.total).toFixed(2)} ${CURRENCY}</span>
+                        <span>الإجمالي:</span><span>${Number(o.total).toFixed(2)} ج.م</span>
                     </div>
-                    <div style="display:flex;justify-content:space-between">
-                        <span>Paid:</span><span>${amountPaid.toFixed(2)} ${CURRENCY}</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between">
-                        <span>Change:</span><span>${change.toFixed(2)} ${CURRENCY}</span>
-                    </div>
+                    <div style="display:flex;justify-content:space-between"><span>المدفوع:</span><span>${Number(o.amountPaid).toFixed(2)} ج.م</span></div>
+                    <div style="display:flex;justify-content:space-between"><span>الباقي:</span><span>${Number(o.change).toFixed(2)} ج.م</span></div>
                 </div>
                 <div style="text-align:center;margin-top:16px;font-size:11px;border-top:1px dashed #333;padding-top:10px">
                     <p style="margin:0">${FOOTER}</p>
-                    <p style="margin:0">Thank you for your visit!</p>
                 </div>
             </div>`;
 
         lastInvoiceHtml = html;
         document.getElementById('invoicePreview').innerHTML = html;
         Modal.open('invoiceModal');
-    } catch (_) {
-        Toast.error('Failed to load invoice');
-    }
+    } catch(_) { Toast.error('فشل تحميل الفاتورة'); }
 }
 
 function doPrint()            { printInvoice(lastInvoiceHtml); }
 function newOrderAfterPrint() { Modal.close('invoiceModal'); clearOrder(); }
 
-/* ════════════════════════════════════════════════════════════════
-   INIT
-════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════
+   التهيئة
+════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     renderCart();
     const activePay = document.querySelector('.payment-btn.active');
     if (activePay) setPayment(0, activePay);
-    fetchShiftStatus();   // pre-load so buttons work immediately without refresh
+    fetchShiftStatus();
+    setInterval(fetchShiftStatus, 30000);
 });
 </script>
 }

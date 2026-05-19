@@ -1,87 +1,115 @@
 @model IEnumerable<RestaurantERP.Models.Expense>
 @{
-    ViewData["Title"] = "Expenses";
+    ViewData["Title"] = "المصروفات";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var thisMonth = Model.Where(e => e.Date.Month == DateTime.Today.Month && e.Date.Year == DateTime.Today.Year).ToList();
 }
 
 <div class="page-header">
     <div>
-        <h1 class="page-title" data-t="expenses">Expenses</h1>
-        <p class="page-subtitle" data-t="trackExpenses">Track and manage restaurant expenses</p>
+        <h1 class="page-title">المصروفات</h1>
+        <p class="page-subtitle">تتبع وإدارة مصروفات المطعم</p>
     </div>
     <button class="btn btn-primary" onclick="Modal.open('addExpenseModal')">
-        <i class="fas fa-plus me-2"></i><span data-t="addExpense">Add Expense</span>
+        <i class="fas fa-plus me-2"></i>إضافة مصروف
     </button>
 </div>
 
+<!-- بطاقات الإحصاء -->
 <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-    <div class="stat-card" style="margin-top:15px;">
+    <div class="stat-card" style="margin-top:15px">
         <div class="stat-icon" style="background:#FF6B6B22;color:#FF6B6B"><i class="fas fa-receipt"></i></div>
         <div class="stat-value">@Model.Count()</div>
-        <div class="stat-label" data-t="totalExpenses">Total Expenses</div>
+        <div class="stat-label">إجمالي المصروفات</div>
     </div>
-    <div class="stat-card" style="margin-top:15px;">
+    <div class="stat-card" style="margin-top:15px">
         <div class="stat-icon" style="background:#FF980022;color:#FF9800"><i class="fas fa-calendar"></i></div>
         <div class="stat-value">@thisMonth.Count</div>
-        <div class="stat-label" data-t="thisMonth">This Month</div>
+        <div class="stat-label">مصروفات الشهر</div>
     </div>
-    <div class="stat-card" style="margin-top:15px;">
+    <div class="stat-card" style="margin-top:15px">
         <div class="stat-icon" style="background:#45B7D122;color:#45B7D1"><i class="fas fa-coins"></i></div>
-        <div class="stat-value">@Model.Sum(e => e.Amount).ToString("F0") EGP</div>
-        <div class="stat-label" data-t="totalAmount">Total Amount</div>
+        <div class="stat-value">@Model.Sum(e => e.Amount).ToString("N0") ج.م</div>
+        <div class="stat-label">إجمالي المبالغ</div>
     </div>
-    <div class="stat-card" style="margin-top:15px;">
+    <div class="stat-card" style="margin-top:15px">
         <div class="stat-icon" style="background:#96CEB422;color:#96CEB4"><i class="fas fa-chart-line"></i></div>
-        <div class="stat-value">@thisMonth.Sum(e => e.Amount).ToString("F0") EGP</div>
-        <div class="stat-label" data-t="monthlyTotal">Monthly Total</div>
+        <div class="stat-value">@thisMonth.Sum(e => e.Amount).ToString("N0") ج.م</div>
+        <div class="stat-label">مجموع الشهر الحالي</div>
     </div>
 </div>
 
+<!-- جدول المصروفات -->
 <div class="card">
     <div class="card-header">
-        <div class="d-flex gap-3 align-items-center">
-            <input type="text" class="form-control" style="max-width:220px" placeholder="Search expenses..." oninput="filterExpenses(this.value)">
-            <select id="catFilter" class="form-control" style="max-width:180px" onchange="filterExpenses('')">
-                <option value="">All Categories</option>
-                @foreach (var cat in Model.Select(e => e.Category).Distinct().Where(c => !string.IsNullOrEmpty(c)))
+        <div class="d-flex gap-3 align-items-center flex-wrap">
+            <div style="position:relative">
+                <i class="fas fa-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px"></i>
+                <input type="text" id="searchInput" class="form-control" style="max-width:220px;padding-right:36px"
+                       placeholder="بحث في المصروفات..." oninput="filterExpenses()">
+            </div>
+            <select id="catFilter" class="form-control" style="max-width:180px" onchange="filterExpenses()">
+                <option value="">كل الفئات</option>
+                @foreach (var cat in Model.Select(e => e.Category).Distinct().Where(c => !string.IsNullOrEmpty(c)).OrderBy(c => c))
                 {
                     <option value="@cat">@cat</option>
                 }
             </select>
+            <div style="margin-right:auto;font-size:13px;color:var(--text-muted)" id="visibleCount">
+                @Model.Count() مصروف
+            </div>
         </div>
     </div>
     <div class="table-container">
         <table class="data-table" id="expensesTable">
             <thead>
                 <tr>
-                    <th data-t="date">Date</th>
-                    <th data-t="title">Title</th>
-                    <th data-t="category">Category</th>
-                    <th data-t="amount">Amount</th>
-                    <th data-t="paymentMethod">Payment</th>
-                    <th data-t="recordedBy">Recorded By</th>
-                    <th data-t="notes">Notes</th>
-                    <th data-t="actions">Actions</th>
+                    <th>التاريخ</th>
+                    <th>العنوان</th>
+                    <th>الفئة</th>
+                    <th>المبلغ</th>
+                    <th>طريقة الدفع</th>
+                    <th>سُجِّل بواسطة</th>
+                    <th>ملاحظات</th>
+                    <th>الإجراءات</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var e in Model.OrderByDescending(x => x.Date))
                 {
-                    <tr data-cat="@e.Category">
-                        <td>@e.Date.ToString("MM/dd/yyyy")</td>
+                    var payAr = e.PaymentMethod == "Cash" ? "نقدي"
+                              : e.PaymentMethod == "Card" ? "كارت"
+                              : e.PaymentMethod == "Digital" ? "إلكتروني"
+                              : e.PaymentMethod ?? "—";
+                    <tr data-cat="@e.Category" data-search="@e.Title @e.Category @e.Description">
+                        <td style="white-space:nowrap">@e.Date.ToString("yyyy/MM/dd")</td>
                         <td><strong>@e.Title</strong></td>
                         <td>
-                            <span class="badge badge-primary">@(e.Category ?? "Other")</span>
+                            <span class="badge badge-primary">@(e.Category ?? "أخرى")</span>
                         </td>
-                        <td style="color:var(--danger);font-weight:600">@e.Amount.ToString("F2") EGP</td>
-                        <td>@(e.PaymentMethod)</td>
-                        <td style="font-size:12px">@(e.CreatedBy?.UserName ?? "-")</td>
-                        <td style="font-size:12px;color:var(--text-muted)">@e.Description</td>
+                        <td style="color:var(--danger);font-weight:700">@e.Amount.ToString("N2") ج.م</td>
+                        <td>@payAr</td>
+                        <td style="font-size:12px;color:var(--text-muted)">
+                            @(e.CreatedBy?.FullNameAr ?? e.CreatedBy?.UserName ?? "—")
+                        </td>
+                        <td style="font-size:12px;color:var(--text-muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                            @e.Description
+                        </td>
                         <td>
-                            <button class="btn btn-sm btn-outline" onclick="deleteExpense(@e.Id, '@e.Title')" style="color:var(--danger)">
+                            <button class="btn btn-sm btn-outline"
+                                    onclick="deleteExpense(@e.Id, '@e.Title.Replace("'", "\\'")')"
+                                    style="color:var(--danger)" title="حذف">
                                 <i class="fas fa-trash"></i>
                             </button>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            <div style="font-size:40px;margin-bottom:12px">💸</div>
+                            <p>لا توجد مصروفات مسجلة</p>
                         </td>
                     </tr>
                 }
@@ -90,98 +118,149 @@
     </div>
 </div>
 
-<!-- Add Expense Modal -->
+<!-- مودال إضافة مصروف -->
 <div class="modal-overlay" id="addExpenseModal">
-    <div class="modal" style="max-width:480px">
+    <div class="modal" style="max-width:500px">
         <div class="modal-header">
-            <h3 class="modal-title" data-t="addExpense">Add Expense</h3>
+            <h3 class="modal-title">إضافة مصروف جديد</h3>
             <button class="modal-close" onclick="Modal.close('addExpenseModal')">&times;</button>
         </div>
         <div class="modal-body">
+
+            <!-- العنوان -->
             <div class="form-group">
-                <label class="form-label" data-t="title">Title</label>
-                <input type="text" id="expTitle" class="form-control" placeholder="e.g. Vegetable Supply">
+                <label class="form-label">عنوان المصروف <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="expTitle" class="form-control"
+                       dir="rtl" placeholder="مثال: توريد خضروات">
             </div>
+
+            <!-- المبلغ والتاريخ -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                 <div class="form-group">
-                    <label class="form-label" data-t="amount">Amount (EGP)</label>
-                    <input type="number" id="expAmount" class="form-control" placeholder="0.00" step="0.01" min="0">
+                    <label class="form-label">المبلغ (ج.م) <span style="color:var(--danger)">*</span></label>
+                    <input type="number" id="expAmount" class="form-control"
+                           placeholder="0.00" step="0.01" min="0">
                 </div>
                 <div class="form-group">
-                    <label class="form-label" data-t="date">Date</label>
-                    <input type="date" id="expDate" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" id="expDate" class="form-control"
+                           value="@DateTime.Today.ToString("yyyy-MM-dd")">
                 </div>
             </div>
+
+            <!-- الفئة وطريقة الدفع -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                 <div class="form-group">
-                    <label class="form-label" data-t="category">Category</label>
+                    <label class="form-label">الفئة</label>
                     <select id="expCategory" class="form-control">
-                        <option>Ingredients</option>
-                        <option>Utilities</option>
-                        <option>Salaries</option>
-                        <option>Equipment</option>
-                        <option>Marketing</option>
-                        <option>Maintenance</option>
-                        <option>Other</option>
+                        <option value="مواد خام">مواد خام</option>
+                        <option value="مرافق">مرافق (كهرباء، مياه، غاز)</option>
+                        <option value="رواتب">رواتب وأجور</option>
+                        <option value="معدات">معدات وأدوات</option>
+                        <option value="تسويق">تسويق وإعلان</option>
+                        <option value="صيانة">صيانة وإصلاح</option>
+                        <option value="إيجار">إيجار</option>
+                        <option value="نقل">نقل وتوصيل</option>
+                        <option value="أخرى">أخرى</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" data-t="paymentMethod">Payment Method</label>
+                    <label class="form-label">طريقة الدفع</label>
                     <select id="expPayment" class="form-control">
-                        <option value="0">Cash</option>
-                        <option value="1">Card</option>
-                        <option value="2">Digital</option>
+                        <option value="Cash">نقدي</option>
+                        <option value="Card">كارت</option>
+                        <option value="Digital">إلكتروني</option>
                     </select>
                 </div>
             </div>
+
+            <!-- ملاحظات -->
             <div class="form-group">
-                <label class="form-label" data-t="notes">Notes (optional)</label>
-                <textarea id="expNotes" class="form-control" rows="2" placeholder="Additional details..."></textarea>
+                <label class="form-label">ملاحظات (اختياري)</label>
+                <textarea id="expNotes" class="form-control" rows="2"
+                          dir="rtl" placeholder="تفاصيل إضافية..."></textarea>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="Modal.close('addExpenseModal')" data-t="cancel">Cancel</button>
-            <button class="btn btn-primary" onclick="saveExpense()">
-                <i class="fas fa-save me-2"></i><span data-t="save">Save Expense</span>
+            <button class="btn btn-outline" onclick="Modal.close('addExpenseModal')">إلغاء</button>
+            <button class="btn btn-primary" id="saveExpenseBtn" onclick="saveExpense()">
+                <i class="fas fa-save me-2"></i>حفظ المصروف
             </button>
         </div>
     </div>
 </div>
 
 @section Scripts {
-<script>
-function filterExpenses(search) {
-    const cat = document.getElementById('catFilter').value;
-    const s = (search || document.querySelector('input[type=text]').value).toLowerCase();
-    document.querySelectorAll('#expensesTable tbody tr').forEach(row => {
-        row.style.display = (!s || row.textContent.toLowerCase().includes(s)) && (!cat || row.dataset.cat === cat) ? '' : 'none';
-    });
-}
+    <script>
+        /* ── فلترة ─────────────────────────────────────────────────── */
+        function filterExpenses() {
+            const search = (document.getElementById('searchInput').value || '').toLowerCase();
+            const cat    = document.getElementById('catFilter').value;
+            let visible  = 0;
+            document.querySelectorAll('#expensesTable tbody tr[data-search]').forEach(row => {
+                const matchSearch = !search || (row.dataset.search || '').toLowerCase().includes(search)
+                                 || row.textContent.toLowerCase().includes(search);
+                const matchCat    = !cat || row.dataset.cat === cat;
+                const show = matchSearch && matchCat;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            document.getElementById('visibleCount').textContent = visible + ' مصروف';
+        }
 
-async function saveExpense() {
-        const payload = {
-            title: document.getElementById('expTitle').value,
-            amount: parseFloat(document.getElementById('expAmount').value) || 0,
-            date: document.getElementById('expDate').value,
-            category: document.getElementById('expCategory').value,
-            paymentMethod: parseInt(document.getElementById('expPayment').value),
-            description: document.getElementById('expNotes').value
-        };
-    if (!payload.title || payload.amount <= 0) { Toast.warning('Please fill in title and amount'); return; }
-    try {
-        const res = await API.post('/Admin/SaveExpense', payload);
-        if (res.success) { Toast.success('Expense saved'); setTimeout(() => location.reload(), 800); }
-        else Toast.error(res.message || 'Failed');
-    } catch(e) { Toast.error('Error saving expense'); }
-}
+        /* ── حفظ المصروف ──────────────────────────────────────────── */
+        async function saveExpense() {
+            const title  = document.getElementById('expTitle').value.trim();
+            const amount = parseFloat(document.getElementById('expAmount').value) || 0;
 
-async function deleteExpense(id, title) {
-    if (!confirm(`Delete expense "${title}"?`)) return;
-    try {
-        const res = await API.post('/Admin/DeleteExpense', { id });
-        if (res.success) { Toast.success('Expense deleted'); setTimeout(() => location.reload(), 600); }
-        else Toast.error(res.message || 'Failed');
-    } catch(e) { Toast.error('Error'); }
-}
-</script>
+            if (!title)    { Toast.warning('يرجى إدخال عنوان المصروف'); return; }
+            if (amount <= 0) { Toast.warning('يرجى إدخال مبلغ صحيح'); return; }
+
+            const btn = document.getElementById('saveExpenseBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+
+            const payload = {
+                id:            0,
+                title,
+                amount,
+                date:          document.getElementById('expDate').value || new Date().toISOString().split('T')[0],
+                category:      document.getElementById('expCategory').value,
+                paymentMethod: document.getElementById('expPayment').value,   // ← FIX: string "Cash"/"Card"/"Digital"
+                description:   document.getElementById('expNotes').value.trim(),
+                notes:         document.getElementById('expNotes').value.trim()
+            };
+
+            try {
+                const res = await API.post('/Admin/SaveExpense', payload);
+                if (res.success) {
+                    Toast.success('تم حفظ المصروف ✅');
+                    setTimeout(() => location.reload(), 700);
+                } else {
+                    Toast.error(res.message || 'فشل الحفظ');
+                }
+            } catch(e) {
+                Toast.error('حدث خطأ أثناء الحفظ');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ المصروف';
+        }
+
+        /* ── حذف المصروف ──────────────────────────────────────────── */
+        async function deleteExpense(id, title) {
+            if (!confirm(`هل تريد حذف المصروف "${title}"؟`)) return;
+            try {
+                const res = await API.post('/Admin/DeleteExpense', { id });   // ← matches DeleteByIdRequest
+                if (res.success) {
+                    Toast.success('تم حذف المصروف');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    Toast.error(res.message || 'فشل الحذف');
+                }
+            } catch(e) {
+                Toast.error('حدث خطأ');
+            }
+        }
+    </script>
 }

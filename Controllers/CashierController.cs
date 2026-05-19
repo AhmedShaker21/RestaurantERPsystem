@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using RestaurantERP.Controllers;
 using RestaurantERP.Data;
+using RestaurantERP.Helpers;
 using RestaurantERP.Models;
 using RestaurantERP.Services;
 
@@ -92,6 +92,13 @@ namespace RestaurantERP.Controllers
             var userId = _userManager.GetUserId(User);
             var branchId = await _branchService.GetCurrentBranchIdAsync();
 
+            // ── SHIFT CHECK: reject if no open shift ──────────────
+            var openShift = await _context.Shifts
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.BranchId == branchId && !s.IsClosed);
+
+            if (openShift == null)
+                return Json(new { success = false, message = "لا توجد وردية مفتوحة — يرجى فتح وردية أولاً قبل إنشاء الطلبات" });
+
             var settings = await _context.SystemSettings
                 .Where(s => s.BranchId == branchId || s.BranchId == null)
                 .ToListAsync();
@@ -144,6 +151,11 @@ namespace RestaurantERP.Controllers
             };
 
             var created = await _orderService.CreateOrderAsync(order, items);
+
+            // ── Increment shift order count ───────────────────────
+            openShift.TotalOrders++;
+            await _context.SaveChangesAsync();
+
             return Json(new { success = true, orderId = created.Id, orderNumber = created.OrderNumber, total = created.Total });
         }
 
@@ -184,8 +196,12 @@ namespace RestaurantERP.Controllers
                 customerName = order.CustomerName,
                 notes = order.Notes,
                 table = order.Table?.TableNumber,
-                cashier = order.Cashier?.UserName,
-                cashierAr = (order.Cashier as ApplicationUser)?.FullNameAr ?? order.Cashier?.UserName,
+                cashier = (order.Cashier as ApplicationUser)?.FullName
+                                 ?? (order.Cashier as ApplicationUser)?.FullNameAr
+                                 ?? order.Cashier?.UserName ?? order.Cashier?.Email ?? "—",
+                cashierAr = (order.Cashier as ApplicationUser)?.FullNameAr
+                                 ?? (order.Cashier as ApplicationUser)?.FullName
+                                 ?? order.Cashier?.UserName ?? "—",
                 branchName = order.Branch?.Name,
                 branchNameAr = order.Branch?.NameAr,
                 items = order.Items.Select(i => new
@@ -311,6 +327,12 @@ namespace RestaurantERP.Controllers
             order.Notes = $"CANCELLED: {reason}";
             await _context.SaveChangesAsync();
             return Json(new { success = true });
+        }
+        [HttpPost]
+        public IActionResult OpenDrawer()
+        {
+            CashDrawer.OpenDrawer();
+            return Ok();
         }
     }
 

@@ -6,6 +6,10 @@
     <RootNamespace>RestaurantERP</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Controllers\WaiterController.cs~RF1f7eebaa.TMP" />
+    <None Remove="Views\Admin\Reports.cshtml~RF1f454211.TMP" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />

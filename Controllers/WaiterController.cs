@@ -155,77 +155,139 @@ namespace RestaurantERP.Controllers
         [HttpPost]
         public async Task<IActionResult> PlaceOrder([FromBody] WaiterOrderRequest req)
         {
-            if (req.Items == null || !req.Items.Any())
-                return Json(new { success = false, message = "No items in order" });
-
-            var userId = _userManager.GetUserId(User);
-            var settings = await _context.SystemSettings.ToListAsync();
-            var taxRate = decimal.Parse(settings.FirstOrDefault(s => s.Key == "TaxRate")?.Value ?? "14");
-
-            var items = new List<OrderItem>();
-
-            foreach (var item in req.Items)
+            try
             {
-                var product = await _context.Products.FindAsync(item.ProductId);
-                if (product == null) continue;
-
-                if (product.TrackStock && product.StockQuantity < item.Quantity)
-                    return Json(new { success = false, message = $"Not enough stock for {product.Name}" });
-
-                items.Add(new OrderItem
+                if (req == null)
                 {
-                    ProductId = item.ProductId,
-                    Product = product,
-                    Quantity = item.Quantity,
-                    UnitPrice = product.Price,
-                    TotalPrice = product.Price * item.Quantity,
-                    Notes = item.Notes
+                    return Json(new { success = false, message = "Invalid request data." });
+                }
+
+                if (req.Items == null || !req.Items.Any())
+                {
+                    return Json(new { success = false, message = "Order has no items." });
+                }
+
+                int branchId;
+
+                if (req.OrderType == OrderType.DineIn)
+                {
+                    if (req.TableId == null)
+                    {
+                        return Json(new { success = false, message = "Please select a table." });
+                    }
+
+                    var table = await _context.DiningTables
+                        .FirstOrDefaultAsync(t => t.Id == req.TableId.Value);
+
+                    if (table == null)
+                    {
+                        return Json(new { success = false, message = "Selected table was not found." });
+                    }
+
+                    branchId = table.BranchId;
+                }
+                else
+                {
+                    var branch = await _context.Branches.FirstOrDefaultAsync();
+
+                    if (branch == null)
+                    {
+                        return Json(new { success = false, message = "No branch found in database." });
+                    }
+
+                    branchId = branch.Id;
+                }
+
+                var branchExists = await _context.Branches.AnyAsync(b => b.Id == branchId);
+
+                if (!branchExists)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = $"Invalid BranchId: {branchId}. This branch does not exist."
+                    });
+                }
+
+                var subtotal = 0m;
+                var orderItems = new List<OrderItem>();
+
+                foreach (var item in req.Items)
+                {
+                    var product = await _context.Products.FindAsync(item.ProductId);
+
+                    if (product == null)
+                    {
+                        return Json(new
+                        {
+                            success = false,
+                            message = $"Product with ID {item.ProductId} was not found."
+                        });
+                    }
+
+                    subtotal += product.Price * item.Quantity;
+
+                    orderItems.Add(new OrderItem
+                    {
+                        ProductId = product.Id,
+                        Quantity = item.Quantity,
+                        UnitPrice = product.Price,
+                        Notes = item.Notes
+                    });
+                }
+
+                var discount = req.DiscountAmount;
+                var taxable = subtotal - discount;
+                if (taxable < 0) taxable = 0;
+
+                var taxRate = 0.14m;
+                var taxAmount = taxable * taxRate;
+                var total = taxable + taxAmount;
+
+                var order = new Order
+                {
+                    OrderNumber = "ORD-" + DateTime.Now.ToString("yyyyMMddHHmmss"),
+                    CreatedAt = DateTime.Now,
+
+                    TableId = req.OrderType == OrderType.DineIn ? req.TableId : null,
+                    OrderType = req.OrderType,
+                    Status = OrderStatus.Pending,
+
+                    CustomerName = req.CustomerName,
+                    CustomerPhone = req.CustomerPhone,
+                    Notes = req.Notes,
+
+                    BranchId = branchId,
+
+                    SubTotal = subtotal,
+                    DiscountAmount = discount,
+                    TaxRate = taxRate,
+                    TaxAmount = taxAmount,
+                    Total = total,
+
+                    AmountPaid = req.AmountPaid,
+                    PaymentMethod = req.PaymentMethod
+                };
+
+                var createdOrder = await _orderService.CreateOrderAsync(order, orderItems);
+
+                return Json(new
+                {
+                    success = true,
+                    orderId = createdOrder.Id,
+                    orderNumber = createdOrder.OrderNumber,
+                    total = createdOrder.Total
                 });
-
-                if (product.TrackStock)
-                {
-                    product.StockQuantity -= item.Quantity;
-                    _context.Update(product);
-                }
             }
-
-            if (!items.Any())
-                return Json(new { success = false, message = "No valid products found" });
-
-            if (req.TableId.HasValue && req.OrderType == OrderType.DineIn)
+            catch (Exception ex)
             {
-                var table = await _context.DiningTables.FindAsync(req.TableId);
-                if (table != null)
+                return Json(new
                 {
-                    table.Status = TableStatus.Occupied;
-                    _context.Update(table);
-                }
+                    success = false,
+                    message = ex.Message,
+                    details = ex.InnerException?.Message
+                });
             }
-
-            var order = new Order
-            {
-                CashierId = userId,
-                TableId = req.TableId,
-                OrderType = req.OrderType,
-                CustomerName = req.CustomerName,
-                CustomerPhone = req.CustomerPhone,
-                Notes = req.Notes,
-                TaxRate = taxRate,
-                DiscountAmount = req.DiscountAmount,
-                AmountPaid = req.AmountPaid,
-                PaymentMethod = req.PaymentMethod,
-                Status = OrderStatus.Pending
-            };
-
-            var created = await _orderService.CreateOrderAsync(order, items);
-
-            return Json(new
-            {
-                success = true,
-                orderId = created.Id,
-                orderNumber = created.OrderNumber,
-                total = created.Total
-            });
         }
 
         [HttpGet]

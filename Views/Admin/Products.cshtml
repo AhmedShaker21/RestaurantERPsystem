@@ -6,22 +6,23 @@
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
     <div>
-        <h2 style="font-size:22px;font-weight:800" data-t="products">المنتجات</h2>
+        <h2 style="font-size:22px;font-weight:800">المنتجات</h2>
         <p style="color:var(--text-secondary);font-size:13px">@Model.Count() منتج في النظام</p>
     </div>
     <a href="/Admin/CreateProduct" class="btn btn-accent">
-        <span>➕</span> <span data-t="add-product">إضافة منتج</span>
+        <span>➕</span> إضافة منتج
     </a>
 </div>
 
-<!-- FILTERS -->
+<!-- فلاتر البحث -->
 <div class="card mb-4">
     <div class="card-body" style="padding:16px">
         <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
             <div style="flex:1;min-width:200px">
                 <div class="search-bar">
                     <span class="search-icon">🔍</span>
-                    <input type="text" name="search" value="@ViewBag.Search" placeholder="بحث في المنتجات..." data-t-placeholder="search" class="form-control">
+                    <input type="text" name="search" value="@ViewBag.Search"
+                           placeholder="بحث في المنتجات..." class="form-control">
                 </div>
             </div>
             <div>
@@ -30,7 +31,7 @@
                     @foreach (var cat in categories)
                     {
                         <option value="@cat.Id" selected="@(ViewBag.CategoryId?.ToString() == cat.Id.ToString())">
-                            @cat.Icon @cat.NameAr / @cat.Name
+                            @cat.Icon @cat.NameAr
                         </option>
                     }
                 </select>
@@ -48,20 +49,20 @@
     </div>
 </div>
 
-<!-- PRODUCTS TABLE -->
+<!-- جدول المنتجات -->
 <div class="card">
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
-                    <th data-t="name">الاسم</th>
-                    <th data-t="category">الفئة</th>
-                    <th data-t="selling-price">سعر البيع</th>
-                    <th data-t="cost-price">التكلفة</th>
+                    <th>الاسم</th>
+                    <th>الفئة</th>
+                    <th>سعر البيع</th>
+                    <th>التكلفة</th>
                     <th>الربح</th>
-                    <th data-t="stock-qty">المخزون</th>
-                    <th data-t="status">الحالة</th>
-                    <th data-t="actions">الإجراءات</th>
+                    <th>المخزون</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
                 </tr>
             </thead>
             <tbody>
@@ -74,11 +75,11 @@
                             <div style="display:flex;align-items:center;gap:10px">
                                 <div class="prod-img">@(p.Category?.Icon ?? "🍽️")</div>
                                 <div>
-                                    <div style="font-weight:600">
-                                        <span data-lang="ar">@p.NameAr</span>
-                                        <span data-lang="en" style="display:none">@p.Name</span>
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted)">@p.Name</div>
+                                    <div style="font-weight:600">@(p.NameAr ?? p.Name)</div>
+                                    @if (!string.IsNullOrEmpty(p.Barcode))
+                                    {
+                                        <div style="font-size:11px;color:var(--text-muted);font-family:monospace">📊 @p.Barcode</div>
+                                    }
                                 </div>
                             </div>
                         </td>
@@ -86,6 +87,10 @@
                             <span class="badge" style="background:@(p.Category?.ColorHex ?? "#ccc")20;color:@(p.Category?.ColorHex ?? "#333")">
                                 @p.Category?.Icon @p.Category?.NameAr
                             </span>
+                            @if (p.Category?.SkipKitchen == true)
+                            {
+                                <span style="background:#22c55e22;color:#22c55e;font-size:9px;font-weight:800;padding:2px 6px;border-radius:10px;display:inline-block;margin-top:2px">⚡ فوري</span>
+                            }
                         </td>
                         <td><strong style="color:var(--primary-light)">@p.Price.ToString("N2") ج.م</strong></td>
                         <td>@p.CostPrice.ToString("N2") ج.م</td>
@@ -141,24 +146,24 @@
 </div>
 
 @section Scripts {
-<script>
-async function toggleProduct(id, btn) {
-    const res = await API.post(`/Admin/ToggleProduct`, id);
-    if (res.success) {
-        btn.textContent = res.isAvailable ? '🔴' : '🟢';
-        Toast.success(res.isAvailable ? 'المنتج متاح الآن' : 'تم إيقاف المنتج');
-    }
-}
+    <script>
+        async function toggleProduct(id, btn) {
+            const res = await API.post(`/Admin/ToggleProduct`, id);
+            if (res.success) {
+                btn.textContent = res.isAvailable ? '🔴' : '🟢';
+                Toast.success(res.isAvailable ? 'المنتج متاح الآن' : 'تم إيقاف المنتج');
+            }
+        }
 
-async function deleteProduct(id) {
-    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-    const res = await API.post(`/Admin/DeleteProduct?id=${id}`, {});
-    if (res.success) {
-        document.getElementById(`row-${id}`)?.remove();
-        Toast.success('تم حذف المنتج');
-    } else {
-        Toast.error('لا يمكن حذف هذا المنتج');
-    }
-}
-</script>
+        async function deleteProduct(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+            const res = await API.post(`/Admin/DeleteProduct?id=${id}`, {});
+            if (res.success) {
+                document.getElementById(`row-${id}`)?.remove();
+                Toast.success('تم حذف المنتج');
+            } else {
+                Toast.error('لا يمكن حذف هذا المنتج');
+            }
+        }
+    </script>
 }
