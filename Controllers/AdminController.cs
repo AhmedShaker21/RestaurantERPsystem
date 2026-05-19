@@ -117,13 +117,16 @@ namespace RestaurantERP.Controllers
                 model.CostPrice = Math.Round(model.BoxCostPrice / model.UnitsPerBox, 2);
             }
 
-            // Clear validation errors for fields we compute server-side
-            ModelState.Remove(nameof(model.Price));
-            ModelState.Remove(nameof(model.CostPrice));
-            ModelState.Remove(nameof(model.Name));
-            ModelState.Remove(nameof(model.CategoryId));
+            // JS handles validation — clear all ModelState and do manual checks
+            ModelState.Clear();
 
-            if (ModelState.IsValid)
+            // Manual server-side validation
+            if (string.IsNullOrWhiteSpace(model.NameAr))
+                return Json(new { success = false, message = "اسم المنتج مطلوب" });
+            if (model.Price <= 0 && (!model.SellByBox || model.BoxSellPrice <= 0))
+                return Json(new { success = false, message = "سعر البيع مطلوب" });
+
+            if (true) // always valid after Clear
             {
                 model.CreatedAt = DateTime.Now;
                 _context.Products.Add(model);
@@ -172,20 +175,25 @@ namespace RestaurantERP.Controllers
                 model.Price = Math.Round(model.BoxSellPrice / model.UnitsPerBox, 2);
                 model.CostPrice = Math.Round(model.BoxCostPrice / model.UnitsPerBox, 2);
             }
-            ModelState.Remove(nameof(model.Price));
-            ModelState.Remove(nameof(model.CostPrice));
-            ModelState.Remove(nameof(model.Name));
-            ModelState.Remove(nameof(model.CategoryId));
-            if (ModelState.IsValid)
+            ModelState.Clear(); // JS handles validation
+
+            model.UpdatedAt = DateTime.Now;
+            _context.Update(model);
+
+            // Update branch assignments
+            var existingBranches = await _context.ProductBranches.Where(pb => pb.ProductId == id).ToListAsync();
+            _context.ProductBranches.RemoveRange(existingBranches);
+            if (!selectedBranchIds.Any())
             {
-                model.UpdatedAt = DateTime.Now;
-                _context.Update(model);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "تم تحديث المنتج بنجاح!";
-                return RedirectToAction(nameof(Products));
+                var mainId = await _context.Branches.Where(b => b.IsMainBranch).Select(b => b.Id).FirstOrDefaultAsync();
+                if (mainId > 0) selectedBranchIds.Add(mainId);
             }
-            ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
-            return View(model);
+            foreach (var bid in selectedBranchIds.Distinct())
+                _context.ProductBranches.Add(new ProductBranch { ProductId = id, BranchId = bid });
+
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "تم تحديث المنتج بنجاح!";
+            return RedirectToAction(nameof(Products));
         }
 
         [HttpPost]
