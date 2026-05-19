@@ -76,17 +76,27 @@ namespace RestaurantERP.Controllers
         // ═════════════════════════════════════════════════════
         // PRODUCTS
         // ═════════════════════════════════════════════════════
-        public async Task<IActionResult> Products(string? search, int? categoryId, bool? active)
+        public async Task<IActionResult> Products(string? search, int? categoryId, bool? active, int? branchId)
         {
-            var query = _context.Products.Include(p => p.Category).AsQueryable();
+            var query = _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.ProductBranches).ThenInclude(pb => pb.Branch)
+                .AsQueryable();
+
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(p => p.Name.Contains(search) || p.NameAr.Contains(search));
             if (categoryId.HasValue)
                 query = query.Where(p => p.CategoryId == categoryId);
             if (active.HasValue)
                 query = query.Where(p => p.IsActive == active);
+            if (branchId.HasValue)
+                query = query.Where(p => p.ProductBranches.Any(pb => pb.BranchId == branchId));
+
+            var branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
 
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+            ViewBag.Branches = branches;
+            ViewBag.BranchId = branchId;
             ViewBag.Search = search;
             ViewBag.CategoryId = categoryId;
             return View(await query.OrderByDescending(p => p.CreatedAt).ToListAsync());
@@ -125,6 +135,12 @@ namespace RestaurantERP.Controllers
                 return Json(new { success = false, message = "اسم المنتج مطلوب" });
             if (model.Price <= 0 && (!model.SellByBox || model.BoxSellPrice <= 0))
                 return Json(new { success = false, message = "سعر البيع مطلوب" });
+
+            // Prevent NOT NULL constraint errors
+            model.Barcode = model.Barcode ?? string.Empty;
+            model.Name = string.IsNullOrEmpty(model.Name) ? model.NameAr : model.Name;
+            model.NameAr = model.NameAr ?? string.Empty;
+            model.BoxBarcode = model.BoxBarcode ?? string.Empty;
 
             if (true) // always valid after Clear
             {
@@ -176,6 +192,12 @@ namespace RestaurantERP.Controllers
                 model.CostPrice = Math.Round(model.BoxCostPrice / model.UnitsPerBox, 2);
             }
             ModelState.Clear(); // JS handles validation
+
+            // Prevent NOT NULL constraint errors on optional string fields
+            model.Barcode = model.Barcode ?? string.Empty;
+            model.Name = string.IsNullOrEmpty(model.Name) ? model.NameAr : model.Name;
+            model.NameAr = model.NameAr ?? string.Empty;
+            model.BoxBarcode = model.BoxBarcode ?? string.Empty;
 
             model.UpdatedAt = DateTime.Now;
             _context.Update(model);

@@ -151,7 +151,8 @@
                                 </button>
                             </label>
                             <input type="number" class="form-control" step="0.01" min="0" id="unitCostPrice"
-                                   oninput="calcUnitProfit()">
+                                   value="@(Model?.SellByBox==true ? "" : Model?.CostPrice > 0 ? Model.CostPrice.ToString("F2") : "")"
+                                   oninput="calcUnitProfit(); syncPrices()">
                         </div>
                     </div>
                     <div id="unitProfitAlert" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:12px"></div>
@@ -361,8 +362,19 @@
             toggleStock();
             const isByBox = document.getElementById('hiddenSellByBox').value === 'true';
             toggleSellType(isByBox);
-            if (isByBox) calcBoxPrices();
-            else { calcUnitProfit(); syncPrices(); }
+            if (isByBox) {
+                calcBoxPrices();
+            } else {
+                // Seed hidden fields from visible inputs (which have model values on edit)
+                const vPrice = document.getElementById('unitPrice')?.value;
+                const vCost  = document.getElementById('unitCostPrice')?.value;
+                // Only overwrite hidden if visible has a real value (edit mode)
+                if (vPrice && parseFloat(vPrice) > 0)
+                    document.getElementById('hiddenPrice').value = vPrice;
+                if (vCost && parseFloat(vCost) >= 0)
+                    document.getElementById('hiddenCostPrice').value = vCost;
+                calcUnitProfit();
+            }
             if (document.getElementById('taxOverrideCheck').checked) showTaxPreview();
 
             // Name sync
