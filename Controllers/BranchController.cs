@@ -115,7 +115,7 @@ namespace RestaurantERP.Controllers
         }
 
         [HttpPost, Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create(Branch branch)
+        public async Task<IActionResult> Create([FromBody] Branch branch)
         {
             if (!_context.Branches.Any()) branch.IsMainBranch = true;
             _context.Branches.Add(branch);
@@ -304,6 +304,47 @@ namespace RestaurantERP.Controllers
             }
 
             return Json(data);
+        }
+
+        // ── Admin: Delete Branch ─────────────────────────────────
+        [HttpPost, Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete([FromBody] IdRequest req)
+        {
+            var branch = await _context.Branches.FindAsync(req.Id);
+            if (branch == null)
+                return Json(new { success = false, message = "الفرع غير موجود" });
+
+            if (branch.IsMainBranch)
+                return Json(new { success = false, message = "لا يمكن حذف الفرع الرئيسي. عيّن فرعاً آخر كرئيسي أولاً." });
+
+            var hasOrders = await _context.Orders.AnyAsync(o => o.BranchId == req.Id);
+            if (hasOrders)
+                return Json(new { success = false, message = "لا يمكن حذف الفرع لأنه يحتوي على طلبات مسجلة. يمكنك تعطيله بدلاً من ذلك." });
+
+            // Remove related data
+            var userBranches = await _context.UserBranches.Where(ub => ub.BranchId == req.Id).ToListAsync();
+            var productBranches = await _context.ProductBranches.Where(pb => pb.BranchId == req.Id).ToListAsync();
+            var settings = await _context.SystemSettings.Where(s => s.BranchId == req.Id).ToListAsync();
+
+            _context.UserBranches.RemoveRange(userBranches);
+            _context.ProductBranches.RemoveRange(productBranches);
+            _context.SystemSettings.RemoveRange(settings);
+
+            // Move expenses to main branch instead of losing them
+            var mainId = await _context.Branches
+                .Where(b => b.IsMainBranch && b.Id != req.Id)
+                .Select(b => b.Id).FirstOrDefaultAsync();
+            if (mainId > 0)
+            {
+                var expenses = await _context.Expenses.Where(e => e.BranchId == req.Id).ToListAsync();
+                expenses.ForEach(e => e.BranchId = mainId);
+                var shifts = await _context.Shifts.Where(s => s.BranchId == req.Id).ToListAsync();
+                shifts.ForEach(s => s.BranchId = mainId);
+            }
+
+            _context.Branches.Remove(branch);
+            await _context.SaveChangesAsync();
+            return Json(new { success = true });
         }
     }
 

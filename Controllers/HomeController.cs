@@ -24,11 +24,12 @@ namespace RestaurantERP.Controllers
             return roles.FirstOrDefault() switch
             {
                 "Admin" => RedirectToAction("Index", "Admin"),
-                "Manager" => RedirectToAction("Index", "Manager"),
+                "Manager" => RedirectToAction("Index", "Admin"),
                 "Cashier" => RedirectToAction("Index", "Cashier"),
                 "Kitchen" => RedirectToAction("Index", "Kitchen"),
                 "Waiter" => RedirectToAction("Tables", "Waiter"),
-                _ => View()
+                "محصل" => RedirectToAction("Products", "Admin"),
+                _ => RedirectToAction("Login", "Account")
             };
         }
     }

@@ -3,6 +3,9 @@
     ViewData["Title"] = "المصروفات";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var thisMonth = Model.Where(e => e.Date.Month == DateTime.Today.Month && e.Date.Year == DateTime.Today.Year).ToList();
+    var branches = ViewBag.Branches as List<RestaurantERP.Models.Branch> ?? new();
+    var selectedBranchId = ViewBag.BranchId as int?;
+    var selectedBranch = branches.FirstOrDefault(b => b.Id == selectedBranchId);
 }
 
 <div class="page-header">
@@ -13,6 +16,36 @@
     <button class="btn btn-primary" onclick="Modal.open('addExpenseModal')">
         <i class="fas fa-plus me-2"></i>إضافة مصروف
     </button>
+</div>
+
+<!-- فلتر الفرع -->
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+    padding:12px 16px;background:var(--card-bg);border:1px solid var(--border-color);
+    border-radius:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);white-space:nowrap">
+        <i class="fas fa-code-branch me-1" style="color:var(--primary)"></i> فرع المصروف:
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+        <a href="/Admin/Expenses?from=@ViewBag.From&to=@ViewBag.To"
+               style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;
+            border:2px solid @(selectedBranchId == null ? "var(--primary)" : "var(--border-color)");
+            background:@(selectedBranchId == null ? "var(--primary)" : "transparent");
+            color:@(selectedBranchId == null ? "#fff" : "var(--text-muted)")">
+            🌐 كل الفروع
+        </a>
+        @foreach (var b in branches)
+        {
+            var isSel = selectedBranchId == b.Id;
+            <a href="/Admin/Expenses?from=@ViewBag.From&to=@ViewBag.To&branchId=@b.Id"
+                   style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;
+                display:flex;align-items:center;gap:4px;
+                border:2px solid @(isSel ? b.ColorHex : "var(--border-color)");
+                background:@(isSel ? b.ColorHex : "transparent");
+                color:@(isSel ? "#fff" : "var(--text-muted)")">
+                @b.Icon @b.NameAr
+            </a>
+        }
+    </div>
 </div>
 
 <!-- بطاقات الإحصاء -->
@@ -67,6 +100,7 @@
                     <th>التاريخ</th>
                     <th>العنوان</th>
                     <th>الفئة</th>
+                    <th>الفرع</th>
                     <th>المبلغ</th>
                     <th>طريقة الدفع</th>
                     <th>سُجِّل بواسطة</th>
@@ -86,6 +120,21 @@
                         <td><strong>@e.Title</strong></td>
                         <td>
                             <span class="badge badge-primary">@(e.Category ?? "أخرى")</span>
+                        </td>
+                        <td>
+                            @if (e.Branch != null)
+                            {
+                                <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+                                    border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;
+                                    background:@(e.Branch.ColorHex)18;color:@e.Branch.ColorHex;
+                                    border:1px solid @(e.Branch.ColorHex)33">
+                                    @e.Branch.Icon @e.Branch.NameAr
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="color:var(--text-muted);font-size:12px">—</span>
+                            }
                         </td>
                         <td style="color:var(--danger);font-weight:700">@e.Amount.ToString("N2") ج.م</td>
                         <td>@payAr</td>
@@ -174,6 +223,21 @@
                 </div>
             </div>
 
+            <!-- الفرع -->
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-code-branch me-1" style="color:var(--primary)"></i>
+                    الفرع <span style="color:var(--danger)">*</span>
+                </label>
+                <select id="expBranch" class="form-control">
+                    @foreach (var b in branches)
+                    {
+                        var isDefault = selectedBranchId == b.Id || (selectedBranchId == null && b.IsMainBranch);
+                        <option value="@b.Id" selected="@isDefault">@b.Icon @b.NameAr</option>
+                    }
+                </select>
+            </div>
+
             <!-- ملاحظات -->
             <div class="form-group">
                 <label class="form-label">ملاحظات (اختياري)</label>
@@ -228,7 +292,8 @@
                 category:      document.getElementById('expCategory').value,
                 paymentMethod: document.getElementById('expPayment').value,   // ← FIX: string "Cash"/"Card"/"Digital"
                 description:   document.getElementById('expNotes').value.trim(),
-                notes:         document.getElementById('expNotes').value.trim()
+                notes:         document.getElementById('expNotes').value.trim(),
+                branchId:      parseInt(document.getElementById('expBranch')?.value) || null
             };
 
             try {

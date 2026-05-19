@@ -55,8 +55,10 @@
                     }
                     else if (User.IsInRole("Manager"))
                     {
-                        <div class="sidebar-section-title">التحليلات</div>
+                        <div class="sidebar-section-title">الرئيسية</div>
                         <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span>لوحة التحكم</span></a>
+
+                        <div class="sidebar-section-title">التحليلات</div>
                         <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span>التقارير</span></a>
                     }
                     else if (User.IsInRole("Cashier"))
@@ -109,8 +111,7 @@
                                 }
                                 else if (User.IsInRole("محصل"))
                                 {
-                                    <div class="sidebar-section-title">المنتجات</div>
-                                    <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span>المنتجات</span></a>
+                                    <span>محصل</span>
                                 }
                                 else if (User.IsInRole("Waiter"))
                                 {

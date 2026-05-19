@@ -8,7 +8,7 @@ using RestaurantERP.Services;
 
 namespace RestaurantERP.Controllers
 {
-    [Authorize(Roles = "Admin,محصل")]
+    [Authorize(Roles = "Admin,Manager,محصل")]
     public class AdminController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -402,11 +402,37 @@ namespace RestaurantERP.Controllers
             if (user.Id == currentUserId)
                 return Json(new { success = false, message = "لا يمكنك حذف حسابك الخاص" });
 
-            // Remove user-branch assignments first
+            // 1. Remove UserBranches
             var userBranches = await _context.UserBranches.Where(ub => ub.UserId == user.Id).ToListAsync();
             _context.UserBranches.RemoveRange(userBranches);
+
+            // 2. Nullify FK on Orders (keep orders but detach cashier)
+            var orders = await _context.Orders.Where(o => o.CashierId == user.Id).ToListAsync();
+            orders.ForEach(o => o.CashierId = null);
+
+            // 3. Nullify FK on Expenses
+            var expenses = await _context.Expenses.Where(e => e.CreatedById == user.Id || e.RecordedById == user.Id).ToListAsync();
+            expenses.ForEach(e => { if (e.CreatedById == user.Id) e.CreatedById = null; if (e.RecordedById == user.Id) e.RecordedById = null; });
+
+            // 4. Nullify FK on Shifts (keep shift records)
+            var shifts = await _context.Shifts.Where(s => s.UserId == user.Id).ToListAsync();
+            // Shifts.UserId is non-nullable string, so we set it to empty
+            shifts.ForEach(s => s.UserId = string.Empty);
+
+            // 5. Nullify FK on Refunds
+            if (_context.Refunds != null)
+            {
+                var refunds = await _context.Refunds.Where(r => r.ProcessedById == user.Id).ToListAsync();
+                refunds.ForEach(r => r.ProcessedById = null);
+            }
+
+            // 6. Nullify Branch.ManagerId if set
+            var managedBranches = await _context.Branches.Where(b => b.ManagerId == user.Id).ToListAsync();
+            managedBranches.ForEach(b => b.ManagerId = null);
+
             await _context.SaveChangesAsync();
 
+            // 7. Now safe to delete the user
             var result = await _userManager.DeleteAsync(user);
             if (!result.Succeeded)
                 return Json(new { success = false, message = string.Join(", ", result.Errors.Select(e => e.Description)) });
@@ -675,7 +701,12 @@ namespace RestaurantERP.Controllers
         public async Task<IActionResult> Settings()
         {
             var settings = await _context.SystemSettings.ToListAsync();
-            return View(settings.ToDictionary(s => s.Key, s => s.Value));
+            ViewBag.Branches = await _context.Branches.OrderBy(b => b.Name).ToListAsync();
+            // Use last value if duplicate keys exist
+            var dict = settings
+                .GroupBy(s => s.Key)
+                .ToDictionary(g => g.Key, g => g.Last().Value);
+            return View(dict);
         }
 
         [HttpPost]

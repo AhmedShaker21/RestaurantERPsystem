@@ -86,7 +86,7 @@ namespace RestaurantERP.Controllers
                 return RedirectToAction("Index", "Admin");
 
             if (await _userManager.IsInRoleAsync(user, "Manager"))
-                return RedirectToAction("Index", "Manager");
+                return RedirectToAction("Index", "Admin");       // Manager sees Admin dashboard
 
             if (await _userManager.IsInRoleAsync(user, "Cashier"))
                 return RedirectToAction("Index", "Cashier");
@@ -95,9 +95,13 @@ namespace RestaurantERP.Controllers
                 return RedirectToAction("Index", "Kitchen");
 
             if (await _userManager.IsInRoleAsync(user, "Waiter"))
-                return RedirectToAction("Index", "Waiter");
+                return RedirectToAction("Tables", "Waiter");
 
-            return RedirectToAction("AccessDenied", "Account");
+            if (await _userManager.IsInRoleAsync(user, "محصل"))
+                return RedirectToAction("Products", "Admin");       // محصل sees products only
+
+            return RedirectToAction("Login", "Account");            // unknown role → back to login
         }
+    
     }
 }

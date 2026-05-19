@@ -82,13 +82,6 @@
                            placeholder="بحث في المنتجات..." class="form-control">
                 </div>
             </div>
-            <select name="branchId" class="form-control" style="min-width:150px" onchange="this.form.submit()">
-                <option value="">🌐 كل الفروع</option>
-                @foreach (var b in branches)
-                {
-                    <option value="@b.Id" selected="@(selectedBranchId == b.Id)">@b.Icon @b.NameAr</option>
-                }
-            </select>
             <select name="categoryId" class="form-control" style="min-width:140px">
                 <option value="">كل الفئات</option>
                 @foreach (var cat in categories)
