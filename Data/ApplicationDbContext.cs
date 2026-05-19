@@ -11,6 +11,7 @@ namespace RestaurantERP.Data
 
         public DbSet<Branch> Branches { get; set; }
         public DbSet<UserBranch> UserBranches { get; set; }
+        public DbSet<ProductBranch> ProductBranches { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<DiningTable> DiningTables { get; set; }
@@ -26,7 +27,7 @@ namespace RestaurantERP.Data
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-           
+
             builder.Entity<Branch>()
                 .HasOne(b => b.Manager).WithMany()
                 .HasForeignKey(b => b.ManagerId).OnDelete(DeleteBehavior.SetNull);
@@ -106,6 +107,15 @@ namespace RestaurantERP.Data
             builder.Entity<SystemSettings>()
                 .HasOne(s => s.Branch).WithMany()
                 .HasForeignKey(s => s.BranchId).OnDelete(DeleteBehavior.Cascade);
+
+            // ProductBranch many-to-many
+            builder.Entity<ProductBranch>()
+                .HasOne(pb => pb.Product).WithMany(p => p.ProductBranches)
+                .HasForeignKey(pb => pb.ProductId).OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProductBranch>()
+                .HasOne(pb => pb.Branch).WithMany(b => b.ProductBranches)
+                .HasForeignKey(pb => pb.BranchId).OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

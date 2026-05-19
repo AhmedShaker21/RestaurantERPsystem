@@ -55,12 +55,9 @@
                     }
                     else if (User.IsInRole("Manager"))
                     {
-                        <a class="sidebar-link" href="/Manager/Index"><span class="nav-icon">📊</span><span>لوحة التحكم</span></a>
-                        <a class="sidebar-link" href="/Cashier/Index"><span class="nav-icon">💰</span><span>الكاشير</span></a>
-                        <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span>المطبخ</span></a>
-                        <a class="sidebar-link" href="/Manager/Orders"><span class="nav-icon">📋</span><span>الطلبات</span></a>
-                        <a class="sidebar-link" href="/Refund/AdminRefunds"><span class="nav-icon">🔄</span><span>المرتجعات</span></a>
-                        <a class="sidebar-link" href="/Manager/Reports"><span class="nav-icon">📈</span><span>التقارير</span></a>
+                        <div class="sidebar-section-title">التحليلات</div>
+                        <a class="sidebar-link" href="/Admin/Index"><span class="nav-icon">📊</span><span>لوحة التحكم</span></a>
+                        <a class="sidebar-link" href="/Admin/Reports"><span class="nav-icon">📈</span><span>التقارير</span></a>
                     }
                     else if (User.IsInRole("Cashier"))
                     {
@@ -71,6 +68,11 @@
                     else if (User.IsInRole("Kitchen"))
                     {
                         <a class="sidebar-link" href="/Kitchen/Index"><span class="nav-icon">👨‍🍳</span><span>المطبخ</span></a>
+                    }
+                    else if (User.IsInRole("محصل"))
+                    {
+                        <div class="sidebar-section-title">المنتجات</div>
+                        <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span>المنتجات</span></a>
                     }
                     else if (User.IsInRole("Waiter"))
                     {
@@ -104,6 +106,11 @@
                                 {
 
                                     <span>مطبخ</span>
+                                }
+                                else if (User.IsInRole("محصل"))
+                                {
+                                    <div class="sidebar-section-title">المنتجات</div>
+                                    <a class="sidebar-link" href="/Admin/Products"><span class="nav-icon">🍽️</span><span>المنتجات</span></a>
                                 }
                                 else if (User.IsInRole("Waiter"))
                                 {

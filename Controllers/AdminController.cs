@@ -8,7 +8,7 @@ using RestaurantERP.Services;
 
 namespace RestaurantERP.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,محصل")]
     public class AdminController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -50,6 +50,7 @@ namespace RestaurantERP.Controllers
         // ═════════════════════════════════════════════════════
         // DASHBOARD
         // ═════════════════════════════════════════════════════
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Index(int? branchId)
         {
             var branches = await _context.Branches
@@ -91,41 +92,90 @@ namespace RestaurantERP.Controllers
             return View(await query.OrderByDescending(p => p.CreatedAt).ToListAsync());
         }
 
-        public async Task<IActionResult> CreateProduct()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateProduct(int? branchId)
         {
+            var branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+            ViewBag.Branches = branches;
+            ViewBag.DefaultBranchId = branchId
+                ?? await _context.Branches.Where(b => b.IsMainBranch).Select(b => (int?)b.Id).FirstOrDefaultAsync();
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateProduct(Product model)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateProduct(Product model, [FromForm] List<int> selectedBranchIds)
         {
+            if (string.IsNullOrEmpty(model.Name)) model.Name = model.NameAr;
+
+            // Auto-compute unit price from box price if SellByBox
+            if (model.SellByBox && model.UnitsPerBox > 0)
+            {
+                model.Price = Math.Round(model.BoxSellPrice / model.UnitsPerBox, 2);
+                model.CostPrice = Math.Round(model.BoxCostPrice / model.UnitsPerBox, 2);
+            }
+
+            // Clear validation errors for fields we compute server-side
+            ModelState.Remove(nameof(model.Price));
+            ModelState.Remove(nameof(model.CostPrice));
+            ModelState.Remove(nameof(model.Name));
+            ModelState.Remove(nameof(model.CategoryId));
+
             if (ModelState.IsValid)
             {
                 model.CreatedAt = DateTime.Now;
                 _context.Products.Add(model);
                 await _context.SaveChangesAsync();
+
+                // Assign branches (many-to-many)
+                if (!selectedBranchIds.Any())
+                {
+                    // Fallback: assign to main branch
+                    var mainId = await _context.Branches.Where(b => b.IsMainBranch).Select(b => b.Id).FirstOrDefaultAsync();
+                    if (mainId > 0) selectedBranchIds.Add(mainId);
+                }
+                foreach (var bid in selectedBranchIds.Distinct())
+                    _context.ProductBranches.Add(new ProductBranch { ProductId = model.Id, BranchId = bid });
+                await _context.SaveChangesAsync();
+
                 TempData["Success"] = "تم إضافة المنتج بنجاح!";
                 return RedirectToAction(nameof(Products));
             }
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+            ViewBag.Branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
             return View(model);
         }
 
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> EditProduct(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products
+                .Include(p => p.ProductBranches)
+                .FirstOrDefaultAsync(p => p.Id == id);
             if (product == null) return NotFound();
             ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+            ViewBag.Branches = await _context.Branches.Where(b => b.IsActive).OrderBy(b => b.Name).ToListAsync();
+            ViewBag.SelectedBranchIds = product.ProductBranches.Select(pb => pb.BranchId).ToList();
             return View(product);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditProduct(int id, Product model)
+        public async Task<IActionResult> EditProduct(int id, Product model, [FromForm] List<int> selectedBranchIds)
         {
             if (id != model.Id) return NotFound();
+            if (string.IsNullOrEmpty(model.Name)) model.Name = model.NameAr;
+            if (model.SellByBox && model.UnitsPerBox > 0)
+            {
+                model.Price = Math.Round(model.BoxSellPrice / model.UnitsPerBox, 2);
+                model.CostPrice = Math.Round(model.BoxCostPrice / model.UnitsPerBox, 2);
+            }
+            ModelState.Remove(nameof(model.Price));
+            ModelState.Remove(nameof(model.CostPrice));
+            ModelState.Remove(nameof(model.Name));
+            ModelState.Remove(nameof(model.CategoryId));
             if (ModelState.IsValid)
             {
                 model.UpdatedAt = DateTime.Now;
@@ -303,6 +353,33 @@ namespace RestaurantERP.Controllers
                 await _userManager.RemoveFromRolesAsync(user, currentRoles);
                 await _userManager.AddToRoleAsync(user, req.Role);
             }
+
+            return Json(new { success = true });
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser([FromBody] DeleteByIdStringRequest req)
+        {
+            if (req == null || string.IsNullOrEmpty(req.Id))
+                return Json(new { success = false, message = "معرف المستخدم مطلوب" });
+
+            var user = await _userManager.FindByIdAsync(req.Id);
+            if (user == null) return Json(new { success = false, message = "المستخدم غير موجود" });
+
+            // Prevent deleting yourself
+            var currentUserId = _userManager.GetUserId(User);
+            if (user.Id == currentUserId)
+                return Json(new { success = false, message = "لا يمكنك حذف حسابك الخاص" });
+
+            // Remove user-branch assignments first
+            var userBranches = await _context.UserBranches.Where(ub => ub.UserId == user.Id).ToListAsync();
+            _context.UserBranches.RemoveRange(userBranches);
+            await _context.SaveChangesAsync();
+
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+                return Json(new { success = false, message = string.Join(", ", result.Errors.Select(e => e.Description)) });
 
             return Json(new { success = true });
         }
@@ -612,6 +689,7 @@ namespace RestaurantERP.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetReportData(int days = 30, int? branchId = null)
         {
             var from = DateTime.Today.AddDays(-days);
@@ -924,9 +1002,14 @@ namespace RestaurantERP.Controllers
             public string Reason { get; set; } = string.Empty;
         }
 
-        public class DeleteByIdRequest                         // ← NEW: for DeleteExpense
+        public class DeleteByIdRequest                         // for DeleteExpense
         {
             public int Id { get; set; }
+        }
+
+        public class DeleteByIdStringRequest                   // for DeleteUser
+        {
+            public string Id { get; set; } = string.Empty;
         }
     }
 }

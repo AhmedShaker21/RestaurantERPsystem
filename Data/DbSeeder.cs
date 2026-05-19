@@ -16,7 +16,7 @@ namespace RestaurantERP.Data
             await context.Database.MigrateAsync();
 
             // Seed Roles
-            string[] roles = { "Admin", "Manager", "Cashier", "Kitchen", "Waiter" };
+            string[] roles = { "Admin", "Manager", "Cashier", "Kitchen", "Waiter", "محصل" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))

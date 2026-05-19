@@ -106,6 +106,8 @@ body {
 .app-wrapper {
     display: flex;
     min-height: 100vh;
+    overflow-x: hidden;
+    width: 100%;
 }
 
 /* ===== SIDEBAR ===== */
@@ -306,11 +308,16 @@ body {
     flex-direction: column;
     min-height: 100vh;
     transition: margin var(--transition);
+    /* Prevent horizontal overflow past sidebar */
+    min-width: 0;
+    max-width: calc(100vw - var(--sidebar-width));
+    overflow-x: hidden;
 }
 
 [dir="rtl"] .main-content {
     margin-left: 0;
     margin-right: var(--sidebar-width);
+    max-width: calc(100vw - var(--sidebar-width));
 }
 
 /* ===== TOPBAR ===== */
@@ -366,7 +373,19 @@ body {
 .page-content {
     padding: 24px;
     flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
 }
+
+    /* POS page needs edge-to-edge — remove padding */
+    .page-content.pos-page {
+        padding: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
 
 /* ===== CARDS ===== */
 .card {
@@ -498,15 +517,15 @@ body {
 }
 
 .grid-4 {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .grid-3 {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .grid-2 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 /* ===== BUTTONS ===== */
@@ -1381,7 +1400,7 @@ select.form-control {
 /* ===== RESPONSIVENESS ===== */
 @media (max-width: 1200px) {
     .grid-4 {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
@@ -1411,7 +1430,7 @@ select.form-control {
 
 @media (max-width: 768px) {
     .grid-3, .grid-2 {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .page-content {

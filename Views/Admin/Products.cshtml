@@ -2,83 +2,126 @@
 @{
     ViewBag.PageTitle = "إدارة المنتجات";
     var categories = ViewBag.Categories as List<RestaurantERP.Models.Category> ?? new();
+    var branches = ViewBag.Branches as List<RestaurantERP.Models.Branch> ?? new();
+    var selectedBranchId = ViewBag.BranchId as int?;
+    var selectedBranch = branches.FirstOrDefault(b => b.Id == selectedBranchId);
+    bool isReadOnly = User.IsInRole("محصل") && !User.IsInRole("Admin");
 }
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-    <div>
-        <h2 style="font-size:22px;font-weight:800">المنتجات</h2>
-        <p style="color:var(--text-secondary);font-size:13px">@Model.Count() منتج في النظام</p>
+@* ── اختيار الفرع ─────────────────────────────────────────── *@
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow)">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);white-space:nowrap">
+        <i class="fas fa-code-branch me-1" style="color:var(--primary)"></i> فرع:
     </div>
-    <a href="/Admin/CreateProduct" class="btn btn-accent">
-        <span>➕</span> إضافة منتج
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+        <a href="/Admin/Products" style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;border:2px solid @(selectedBranchId == null ? "var(--primary)" : "var(--border-color)");background:@(selectedBranchId == null ? "var(--primary)" : "transparent");color:@(selectedBranchId == null ? "#fff" : "var(--text-muted)")">
+            🌐 الكل
+        </a>
+        @foreach (var b in branches)
+        {
+            var isSel = selectedBranchId == b.Id;
+            <a href="/Admin/Products?branchId=@b.Id"
+                   style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:4px;
+                border:2px solid @(isSel ? b.ColorHex : "var(--border-color)");
+                background:@(isSel ? b.ColorHex : "transparent");color:@(isSel ? "#fff" : "var(--text-muted)")">
+                @b.Icon @b.NameAr
+            </a>
+        }
+    </div>
 </div>
 
-<!-- فلاتر البحث -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+    <div>
+        <h2 style="font-size:20px;font-weight:800">المنتجات</h2>
+        <p style="color:var(--text-secondary);font-size:12px">
+            @Model.Count() منتج@(selectedBranch != null ? $" — {selectedBranch.NameAr}" : "")
+        </p>
+    </div>
+    @if (!isReadOnly)
+    {
+        <a href="/Admin/CreateProduct@(selectedBranchId.HasValue ? "?branchId=" + selectedBranchId : "")" class="btn btn-accent">
+            <span>➕</span> إضافة منتج
+        </a>
+    }
+    else
+    {
+        <div style="padding:6px 14px;border-radius:20px;background:#0891b215;color:#0891b2;font-size:12px;font-weight:700;border:1px solid #0891b244">
+            <i class="fas fa-eye me-1"></i> وضع القراءة فقط
+        </div>
+    }
+</div>
+
+<!-- فلاتر -->
 <div class="card mb-4">
-    <div class="card-body" style="padding:16px">
-        <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
-            <div style="flex:1;min-width:200px">
+    <div class="card-body" style="padding:14px">
+        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+            @if (selectedBranchId.HasValue)
+            {
+                <input type="hidden" name="branchId" value="@selectedBranchId">
+            }
+            <div style="flex:1;min-width:180px">
                 <div class="search-bar">
                     <span class="search-icon">🔍</span>
-                    <input type="text" name="search" value="@ViewBag.Search"
-                           placeholder="بحث في المنتجات..." class="form-control">
+                    <input type="text" name="search" value="@ViewBag.Search" placeholder="بحث في المنتجات..." class="form-control">
                 </div>
             </div>
-            <div>
-                <select name="categoryId" class="form-control" style="min-width:150px">
-                    <option value="">كل الفئات</option>
-                    @foreach (var cat in categories)
-                    {
-                        <option value="@cat.Id" selected="@(ViewBag.CategoryId?.ToString() == cat.Id.ToString())">
-                            @cat.Icon @cat.NameAr
-                        </option>
-                    }
-                </select>
-            </div>
-            <div>
-                <select name="active" class="form-control">
-                    <option value="">كل الحالات</option>
-                    <option value="true">نشط</option>
-                    <option value="false">غير نشط</option>
-                </select>
-            </div>
+            <select name="categoryId" class="form-control" style="min-width:140px">
+                <option value="">كل الفئات</option>
+                @foreach (var cat in categories)
+                {
+                    <option value="@cat.Id" selected="@(ViewBag.CategoryId?.ToString() == cat.Id.ToString())">@cat.Icon @cat.NameAr</option>
+                }
+            </select>
+            <select name="active" class="form-control" style="min-width:120px">
+                <option value="">كل الحالات</option>
+                <option value="true">نشط</option>
+                <option value="false">غير نشط</option>
+            </select>
             <button type="submit" class="btn btn-primary">🔍 بحث</button>
-            <a href="/Admin/Products" class="btn btn-outline">إعادة تعيين</a>
+            <a href="/Admin/Products@(selectedBranchId.HasValue ? "?branchId=" + selectedBranchId : "")" class="btn btn-outline">إعادة تعيين</a>
         </form>
     </div>
 </div>
 
-<!-- جدول المنتجات -->
 <div class="card">
-    <div class="table-wrapper">
-        <table>
+    <div class="table-wrapper" style="overflow-x:auto">
+        <table style="min-width:1000px">
             <thead>
                 <tr>
                     <th>الاسم</th>
                     <th>الفئة</th>
+                    <th>الفروع</th>
+                    <th>نوع البيع</th>
                     <th>سعر البيع</th>
                     <th>التكلفة</th>
                     <th>الربح</th>
+                    <th>الضريبة</th>
                     <th>المخزون</th>
                     <th>الحالة</th>
-                    <th>الإجراءات</th>
+                    @if (!isReadOnly)
+                    {
+                        <th>الإجراءات</th>
+                    }
                 </tr>
             </thead>
             <tbody>
                 @foreach (var p in Model)
                 {
-                    var profit = p.Price - p.CostPrice;
-                    var margin = p.Price > 0 ? (profit / p.Price) * 100 : 0;
+                    var unitPrice = p.EffectivePrice;
+                    var unitCost = p.EffectiveCost;
+                    var profit = unitPrice - unitCost;
+                    var margin = unitPrice > 0 ? (profit / unitPrice) * 100 : 0;
+                    var taxRate = p.TaxRateOverride.HasValue ? p.TaxRateOverride.Value : 14m;
+                    var prodBranches = p.ProductBranches?.Select(pb => pb.Branch).Where(b => b != null).ToList() ?? new();
                     <tr id="row-@p.Id">
                         <td>
-                            <div style="display:flex;align-items:center;gap:10px">
-                                <div class="prod-img">@(p.Category?.Icon ?? "🍽️")</div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div style="font-size:22px">@(p.Category?.Icon ?? "🍽️")</div>
                                 <div>
-                                    <div style="font-weight:600">@(p.NameAr ?? p.Name)</div>
+                                    <div style="font-weight:700;font-size:13px">@(p.NameAr ?? p.Name)</div>
                                     @if (!string.IsNullOrEmpty(p.Barcode))
                                     {
-                                        <div style="font-size:11px;color:var(--text-muted);font-family:monospace">📊 @p.Barcode</div>
+                                        <div style="font-size:10px;color:var(--text-muted);font-family:monospace">📊 @p.Barcode</div>
                                     }
                                 </div>
                             </div>
@@ -89,21 +132,82 @@
                             </span>
                             @if (p.Category?.SkipKitchen == true)
                             {
-                                <span style="background:#22c55e22;color:#22c55e;font-size:9px;font-weight:800;padding:2px 6px;border-radius:10px;display:inline-block;margin-top:2px">⚡ فوري</span>
+                                <div style="background:#22c55e22;color:#22c55e;font-size:9px;font-weight:800;padding:1px 5px;border-radius:8px;display:inline-block;margin-top:2px">⚡ فوري</div>
                             }
                         </td>
-                        <td><strong style="color:var(--primary-light)">@p.Price.ToString("N2") ج.م</strong></td>
-                        <td>@p.CostPrice.ToString("N2") ج.م</td>
+                        <td style="max-width:140px">
+                            @if (!prodBranches.Any())
+                            {
+                                <span style="color:var(--text-muted);font-size:11px">—</span>
+                            }
+                            else
+                            {
+                                <div style="display:flex;flex-wrap:wrap;gap:3px">
+                                    @foreach (var b in prodBranches.Take(3))
+                                    {
+                                        <span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:700;background:@(b!.ColorHex)18;color:@b.ColorHex;border:1px solid @(b.ColorHex)33;white-space:nowrap">
+                                            @b.Icon @b.NameAr
+                                        </span>
+                                    }
+                                    @if (prodBranches.Count > 3)
+                                    {
+                                        <span style="font-size:10px;color:var(--text-muted)">+@(prodBranches.Count - 3)</span>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            @if (p.SellByBox)
+                            {
+                                <div style="font-size:11px">
+                                    <div style="background:#f59e0b22;color:#b45309;padding:2px 7px;border-radius:8px;font-weight:700;display:inline-block">📦 كرتون</div>
+                                    <div style="color:var(--text-muted);margin-top:2px">@p.UnitsPerBox وحدة/كرتون</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <span style="font-size:11px;background:#2563a822;color:#2563a8;padding:2px 7px;border-radius:8px;font-weight:700">🏷️ وحدة</span>
+                            }
+                        </td>
+                        <td>
+                            <div>
+                                <strong style="color:var(--primary-light)">@unitPrice.ToString("N2") ج.م</strong>
+                                @if (p.SellByBox)
+                                {
+                                    <div style="font-size:10px;color:var(--text-muted)">(@p.BoxSellPrice.ToString("N0") كرتون)</div>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                @unitCost.ToString("N2") ج.م
+                                @if (p.SellByBox)
+                                {
+                                    <div style="font-size:10px;color:var(--text-muted)">(@p.BoxCostPrice.ToString("N0") كرتون)</div>
+                                }
+                            </div>
+                        </td>
                         <td>
                             <span style="color:var(--success);font-weight:600">@profit.ToString("N2") ج.م</span>
-                            <div style="font-size:11px;color:var(--text-muted)">@margin.ToString("N0")%</div>
+                            <div style="font-size:10px;color:var(--text-muted)">@margin.ToString("N0")%</div>
+                        </td>
+                        <td>
+                            @if (p.TaxRateOverride.HasValue)
+                            {
+                                <span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:800">
+                                    @p.TaxRateOverride.Value.ToString("N0")%
+                                    <div style="font-size:9px;opacity:.7">مخصص</div>
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="color:var(--text-muted);font-size:12px">14% <span style="font-size:10px">(افتراضي)</span></span>
+                            }
                         </td>
                         <td>
                             @if (p.TrackStock)
                             {
-                                <span class="badge @(p.StockQuantity <= p.MinStockAlert ? "badge-danger" : "badge-success")">
-                                    @p.StockQuantity
-                                </span>
+                                <span class="badge @(p.StockQuantity <= p.MinStockAlert ? "badge-danger" : "badge-success")">@p.StockQuantity</span>
                             }
                             else
                             {
@@ -111,32 +215,29 @@
                             }
                         </td>
                         <td>
-                            <div style="display:flex;flex-direction:column;gap:4px">
-                                <span class="badge @(p.IsActive ? "badge-success" : "badge-danger")">
-                                    @(p.IsActive ? "نشط" : "غير نشط")
-                                </span>
-                                <span class="badge @(p.IsAvailable ? "badge-primary" : "badge-secondary")">
-                                    @(p.IsAvailable ? "متاح" : "غير متاح")
-                                </span>
+                            <div style="display:flex;flex-direction:column;gap:3px">
+                                <span class="badge @(p.IsActive ? "badge-success" : "badge-danger")">@(p.IsActive ? "نشط" : "غير نشط")</span>
+                                <span class="badge @(p.IsAvailable ? "badge-primary" : "badge-secondary")">@(p.IsAvailable ? "متاح" : "غير متاح")</span>
                             </div>
                         </td>
-                        <td>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <a href="/Admin/EditProduct/@p.Id" class="btn btn-outline btn-sm" title="تعديل">✏️</a>
-                                <button class="btn btn-outline btn-sm" onclick="toggleProduct(@p.Id, this)" title="تغيير التوافر">
-                                    @(p.IsAvailable ? "🔴" : "🟢")
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteProduct(@p.Id)" title="حذف">🗑️</button>
-                            </div>
-                        </td>
+                        @if (!isReadOnly)
+                        {
+                            <td>
+                                <div style="display:flex;gap:4px;flex-wrap:wrap">
+                                    <a href="/Admin/EditProduct/@p.Id" class="btn btn-outline btn-sm" title="تعديل">✏️</a>
+                                    <button class="btn btn-outline btn-sm" onclick="toggleProduct(@p.Id,this)" title="تغيير التوافر">@(p.IsAvailable ? "🔴" : "🟢")</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteProduct(@p.Id)" title="حذف">🗑️</button>
+                                </div>
+                            </td>
+                        }
                     </tr>
                 }
                 @if (!Model.Any())
                 {
                     <tr>
-                        <td colspan="8" style="text-align:center;padding:48px;color:var(--text-muted)">
-                            <div style="font-size:48px;margin-bottom:12px">🍽️</div>
-                            <p>لا توجد منتجات</p>
+                        <td colspan="@(isReadOnly ? 10 : 11)" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            <div style="font-size:40px;margin-bottom:12px">🍽️</div>
+                            <p>لا توجد منتجات@(selectedBranch != null ? $" في {selectedBranch.NameAr}" : "")</p>
                         </td>
                     </tr>
                 }
@@ -145,25 +246,27 @@
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        async function toggleProduct(id, btn) {
-            const res = await API.post(`/Admin/ToggleProduct`, id);
-            if (res.success) {
-                btn.textContent = res.isAvailable ? '🔴' : '🟢';
-                Toast.success(res.isAvailable ? 'المنتج متاح الآن' : 'تم إيقاف المنتج');
+@if (!isReadOnly)
+{
+    @section Scripts {
+        <script>
+            async function toggleProduct(id, btn) {
+                const res = await API.post('/Admin/ToggleProduct', id);
+                if (res.success) {
+                    btn.textContent = res.isAvailable ? '🔴' : '🟢';
+                    Toast.success(res.isAvailable ? 'المنتج متاح الآن' : 'تم إيقاف المنتج');
+                }
             }
-        }
-
-        async function deleteProduct(id) {
-            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-            const res = await API.post(`/Admin/DeleteProduct?id=${id}`, {});
-            if (res.success) {
-                document.getElementById(`row-${id}`)?.remove();
-                Toast.success('تم حذف المنتج');
-            } else {
-                Toast.error('لا يمكن حذف هذا المنتج');
+            async function deleteProduct(id) {
+                if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+                const res = await API.post(`/Admin/DeleteProduct?id=${id}`, {});
+                if (res.success) {
+                    document.getElementById(`row-${id}`)?.remove();
+                    Toast.success('تم حذف المنتج');
+                } else {
+                    Toast.error('لا يمكن حذف هذا المنتج');
+                }
             }
-        }
-    </script>
+        </script>
+    }
 }

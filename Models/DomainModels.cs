@@ -19,16 +19,14 @@ namespace RestaurantERP.Models
         public string ColorHex { get; set; } = "#2563a8";
         public string? Icon { get; set; } = "🏢";
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-
-        // Navigation
         public ICollection<DiningTable> Tables { get; set; } = new List<DiningTable>();
         public ICollection<Order> Orders { get; set; } = new List<Order>();
         public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
         public ICollection<Shift> Shifts { get; set; } = new List<Shift>();
         public ICollection<UserBranch> UserBranches { get; set; } = new List<UserBranch>();
+        public ICollection<ProductBranch> ProductBranches { get; set; } = new List<ProductBranch>();
     }
 
-    // Many-to-many: user can belong to multiple branches
     public class UserBranch
     {
         public int Id { get; set; }
@@ -36,7 +34,18 @@ namespace RestaurantERP.Models
         public ApplicationUser? User { get; set; }
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
-        public bool IsPrimary { get; set; } = false; // default branch for this user
+        public bool IsPrimary { get; set; } = false;
+    }
+
+    // NEW: Product <-> Branch many-to-many
+    public class ProductBranch
+    {
+        public int Id { get; set; }
+        public int ProductId { get; set; }
+        public Product? Product { get; set; }
+        public int BranchId { get; set; }
+        public Branch? Branch { get; set; }
+        [Column(TypeName = "decimal(18,2)")] public decimal? OverridePrice { get; set; }
     }
 
     // ===================== CATEGORY =====================
@@ -49,10 +58,6 @@ namespace RestaurantERP.Models
         public string? Icon { get; set; } = "🍽️";
         public string ColorHex { get; set; } = "#FF6B35";
         public bool IsActive { get; set; } = true;
-        /// <summary>
-        /// If true, items in this category bypass the kitchen queue
-        /// and go directly to Ready (e.g. chips, drinks, packaged snacks)
-        /// </summary>
         public bool SkipKitchen { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public ICollection<Product> Products { get; set; } = new List<Product>();
@@ -66,8 +71,20 @@ namespace RestaurantERP.Models
         public string NameAr { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? DescriptionAr { get; set; }
+
         [Column(TypeName = "decimal(18,2)")] public decimal Price { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal CostPrice { get; set; }
+
+        // Box/Unit pricing
+        public bool SellByBox { get; set; } = false;
+        public int UnitsPerBox { get; set; } = 1;
+        [Column(TypeName = "decimal(18,2)")] public decimal BoxCostPrice { get; set; } = 0;
+        [Column(TypeName = "decimal(18,2)")] public decimal BoxSellPrice { get; set; } = 0;
+        public string? BoxBarcode { get; set; }
+
+        // Per-product tax override (null = use system default 14%)
+        [Column(TypeName = "decimal(5,2)")] public decimal? TaxRateOverride { get; set; }
+
         public int CategoryId { get; set; }
         public Category? Category { get; set; }
         public string? ImageUrl { get; set; }
@@ -79,7 +96,13 @@ namespace RestaurantERP.Models
         public string Barcode { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; }
+
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public ICollection<ProductBranch> ProductBranches { get; set; } = new List<ProductBranch>();
+
+        [NotMapped] public decimal EffectivePrice => SellByBox && UnitsPerBox > 0 ? BoxSellPrice / UnitsPerBox : Price;
+        [NotMapped] public decimal EffectiveCost => SellByBox && UnitsPerBox > 0 ? BoxCostPrice / UnitsPerBox : CostPrice;
+        [NotMapped] public decimal EffectiveTaxRate => TaxRateOverride ?? 14m;
     }
 
     // ===================== TABLE =====================
@@ -90,7 +113,6 @@ namespace RestaurantERP.Models
         public int Capacity { get; set; } = 4;
         public TableStatus Status { get; set; } = TableStatus.Available;
         public string? Section { get; set; }
-        // Branch FK
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
         public ICollection<Order> Orders { get; set; } = new List<Order>();
@@ -111,7 +133,6 @@ namespace RestaurantERP.Models
         public DiningTable? Table { get; set; }
         public string? CashierId { get; set; }
         public ApplicationUser? Cashier { get; set; }
-        // Branch FK
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
         public string? CustomerName { get; set; }
@@ -147,7 +168,6 @@ namespace RestaurantERP.Models
         [Column(TypeName = "decimal(18,2)")] public decimal UnitPrice { get; set; }
         [Column(TypeName = "decimal(18,2)")] public decimal TotalPrice { get; set; }
         public string? Notes { get; set; }
-        /// <summary>Copied from Category.SkipKitchen at order time</summary>
         public bool SkipKitchen { get; set; } = false;
     }
 
@@ -205,7 +225,6 @@ namespace RestaurantERP.Models
         public DateTime Date { get; set; } = DateTime.Now;
         public string? CreatedById { get; set; }
         public ApplicationUser? CreatedBy { get; set; }
-        // Branch FK
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
         public ApplicationUser? RecordedBy { get; set; }
@@ -232,7 +251,6 @@ namespace RestaurantERP.Models
         public int Id { get; set; }
         public string Key { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
-        // null = global setting, non-null = branch-specific override
         public int? BranchId { get; set; }
         public Branch? Branch { get; set; }
     }
@@ -253,9 +271,8 @@ namespace RestaurantERP.Models
         public int TotalOrders { get; set; }
         public bool IsClosed { get; set; } = false;
         public string? Notes { get; set; }
-        // Aliases kept for backward-compat
         public bool IsActive => !IsClosed;
         public ApplicationUser? Cashier => User;
-        public ICollection<Order> Orders { get; set; }  // هنا العلاقة مع Orders
+        public ICollection<Order> Orders { get; set; } = new List<Order>();
     }
 }
